@@ -18,7 +18,10 @@ $router->get('/logout', [AuthController::class, 'logout']);
 // Admin
 $router->get('/admin', [AdminController::class, 'index']);
 $router->get('/admin/users', [AdminController::class, 'users']);
-$router->post('/admin/users/create', [AdminController::class, 'createUser']); // ADD THIS LINE
+$router->post('/admin/users/create', [AdminController::class, 'createUser']);
+$router->post('/admin/users/update', [AdminController::class, 'updateUser']);
+$router->post('/admin/users/toggle-status', [AdminController::class, 'toggleUserStatus']);
+$router->post('/admin/users/delete', [AdminController::class, 'deleteUser']);
 $router->get('/admin/vendors', [AdminController::class, 'vendors']);
 $router->post('/admin/vendors/approve', [AdminController::class, 'approveVendor']);
 $router->get('/admin/categories', [AdminController::class, 'categories']);

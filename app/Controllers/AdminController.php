@@ -26,7 +26,7 @@ class AdminController extends Controller
         $foodInactive = (int)$db->query("SELECT COUNT(*) FROM food_items WHERE status='inactive'")->fetchColumn();
         $foodExpired = (int)$db->query("SELECT COUNT(*) FROM food_items WHERE status='expired'")->fetchColumn();
         $orderCount = (int)$db->query("SELECT COUNT(*) FROM orders")->fetchColumn();
-        $revenue = (float)$db->query("SELECT SUM(total_amount) FROM orders WHERE status IN ('paid','completed')")->fetchColumn() ?: 0.0;
+        $revenue = (float)$db->query("SELECT SUM(total_price) FROM orders WHERE status IN ('paid','completed')")->fetchColumn() ?: 0.0;
         $topItems = $db->query("SELECT fi.name, COUNT(oi.id) as sold FROM order_items oi JOIN food_items fi ON fi.id = oi.food_item_id GROUP BY fi.id ORDER BY sold DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
         $expiringItems = $db->query("SELECT name, expiry_date FROM food_items WHERE expiry_date <= DATE_ADD(CURDATE(), INTERVAL 3 DAY) AND status='active'")->fetchAll(PDO::FETCH_ASSOC);
         $suspendedVendors = $db->query("SELECT business_name FROM vendors WHERE approved=0")->fetchAll(PDO::FETCH_ASSOC);
@@ -120,74 +120,244 @@ class AdminController extends Controller
         ]);
     }
 
-
-
     public function createUser(): void
-{
-    Auth::requireRole(['admin']);
-    
-    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-        http_response_code(405);
-        Session::flash('error', 'Method not allowed');
-        $this->redirect('/admin/users');
-    }
-    
-    $token = $_POST['_csrf'] ?? null;
-    if (!$token || !CSRF::check($token)) {
-        http_response_code(419);
-        Session::flash('error', 'Invalid CSRF token');
-        $this->redirect('/admin/users');
-    }
-    
-    $name = trim((string)($_POST['name'] ?? ''));
-    $email = trim((string)($_POST['email'] ?? ''));
-    $password = (string)($_POST['password'] ?? '');
-    $role = (string)($_POST['role'] ?? 'consumer');
-    
-    // Validation
-    if (empty($name) || empty($email) || empty($password)) {
-        Session::flash('error', 'All fields are required');
-        $this->redirect('/admin/users');
-    }
-    
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        Session::flash('error', 'Invalid email format');
-        $this->redirect('/admin/users');
-    }
-    
-    if (!in_array($role, ['admin', 'vendor', 'consumer'])) {
-        Session::flash('error', 'Invalid role selected');
-        $this->redirect('/admin/users');
-    }
-    
-    try {
-        $userModel = new User();
+    {
+        Auth::requireRole(['admin']);
         
-        // Check if email already exists
-        $existingUser = $userModel->findByEmail($email);
-        if ($existingUser) {
-            Session::flash('error', 'Email already exists');
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            Session::flash('error', 'Method not allowed');
             $this->redirect('/admin/users');
         }
         
-        // Create user
-        $userId = $userModel->create([
-            'name' => $name,
-            'email' => $email,
-            'password_hash' => password_hash($password, PASSWORD_DEFAULT),
-            'role' => $role,
-            'status' => 'active'
-        ]);
+        $token = $_POST['_csrf'] ?? null;
+        if (!$token || !CSRF::check($token)) {
+            http_response_code(419);
+            Session::flash('error', 'Invalid CSRF token');
+            $this->redirect('/admin/users');
+        }
         
-        Session::flash('success', 'User created successfully');
+        $name = trim((string)($_POST['name'] ?? ''));
+        $email = trim((string)($_POST['email'] ?? ''));
+        $password = (string)($_POST['password'] ?? '');
+        $role = (string)($_POST['role'] ?? 'consumer');
         
-    } catch (\Throwable $e) {
-        http_response_code(500);
-        Session::flash('error', 'Failed to create user');
+        // Validation
+        if (empty($name) || empty($email) || empty($password)) {
+            Session::flash('error', 'All fields are required');
+            $this->redirect('/admin/users');
+        }
+        
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            Session::flash('error', 'Invalid email format');
+            $this->redirect('/admin/users');
+        }
+        
+        if (!in_array($role, ['admin', 'vendor', 'consumer'])) {
+            Session::flash('error', 'Invalid role selected');
+            $this->redirect('/admin/users');
+        }
+        
+        try {
+            $userModel = new User();
+            
+            // Check if email already exists
+            $existingUser = $userModel->findByEmail($email);
+            if ($existingUser) {
+                Session::flash('error', 'Email already exists');
+                $this->redirect('/admin/users');
+            }
+            
+            // Create user
+            $userId = $userModel->create([
+                'name' => $name,
+                'email' => $email,
+                'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                'role' => $role,
+                'status' => 'active'
+            ]);
+            
+            Session::flash('success', 'User created successfully');
+            
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            Session::flash('error', 'Failed to create user');
+        }
+        
+        $this->redirect('/admin/users');
     }
-    
-    $this->redirect('/admin/users');
-}
+
+    public function updateUser(): void
+    {
+        Auth::requireRole(['admin']);
+        
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            Session::flash('error', 'Method not allowed');
+            $this->redirect('/admin/users');
+        }
+        
+        $token = $_POST['_csrf'] ?? null;
+        if (!$token || !CSRF::check($token)) {
+            http_response_code(419);
+            Session::flash('error', 'Invalid CSRF token');
+            $this->redirect('/admin/users');
+        }
+        
+        $userId = (int)($_POST['user_id'] ?? 0);
+        $name = trim((string)($_POST['name'] ?? ''));
+        $email = trim((string)($_POST['email'] ?? ''));
+        $role = (string)($_POST['role'] ?? 'consumer');
+        $status = (string)($_POST['status'] ?? 'active');
+        
+        // Validation
+        if (empty($name) || empty($email) || $userId <= 0) {
+            Session::flash('error', 'All fields are required');
+            $this->redirect('/admin/users');
+        }
+        
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            Session::flash('error', 'Invalid email format');
+            $this->redirect('/admin/users');
+        }
+        
+        if (!in_array($role, ['admin', 'vendor', 'consumer'])) {
+            Session::flash('error', 'Invalid role selected');
+            $this->redirect('/admin/users');
+        }
+        
+        if (!in_array($status, ['active', 'pending', 'suspended'])) {
+            Session::flash('error', 'Invalid status selected');
+            $this->redirect('/admin/users');
+        }
+        
+        try {
+            $userModel = new User();
+            $db = $userModel->getDb();
+            
+            // Check if email already exists for another user
+            $stmt = $db->prepare('SELECT id FROM users WHERE email = :email AND id != :id LIMIT 1');
+            $stmt->execute(['email' => $email, 'id' => $userId]);
+            if ($stmt->fetchColumn()) {
+                Session::flash('error', 'Email already exists for another user');
+                $this->redirect('/admin/users');
+            }
+            
+            // Update user
+            $stmt = $db->prepare('UPDATE users SET name = :name, email = :email, role = :role, status = :status, updated_at = NOW() WHERE id = :id');
+            $stmt->execute([
+                'name' => $name,
+                'email' => $email,
+                'role' => $role,
+                'status' => $status,
+                'id' => $userId
+            ]);
+            
+            Session::flash('success', 'User updated successfully');
+            
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            Session::flash('error', 'Failed to update user');
+        }
+        
+        $this->redirect('/admin/users');
+    }
+
+    public function toggleUserStatus(): void
+    {
+        Auth::requireRole(['admin']);
+        
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            Session::flash('error', 'Method not allowed');
+            $this->redirect('/admin/users');
+        }
+        
+        $token = $_POST['_csrf'] ?? null;
+        if (!$token || !CSRF::check($token)) {
+            http_response_code(419);
+            Session::flash('error', 'Invalid CSRF token');
+            $this->redirect('/admin/users');
+        }
+        
+        $userId = (int)($_POST['user_id'] ?? 0);
+        
+        if ($userId <= 0) {
+            Session::flash('error', 'Invalid user specified');
+            $this->redirect('/admin/users');
+        }
+        
+        try {
+            $userModel = new User();
+            $db = $userModel->getDb();
+            
+            // Get current status
+            $stmt = $db->prepare('SELECT status FROM users WHERE id = :id');
+            $stmt->execute(['id' => $userId]);
+            $currentStatus = $stmt->fetchColumn();
+            
+            if (!$currentStatus) {
+                Session::flash('error', 'User not found');
+                $this->redirect('/admin/users');
+            }
+            
+            // Toggle status
+            $newStatus = $currentStatus === 'active' ? 'suspended' : 'active';
+            
+            $stmt = $db->prepare('UPDATE users SET status = :status, updated_at = NOW() WHERE id = :id');
+            $stmt->execute(['status' => $newStatus, 'id' => $userId]);
+            
+            Session::flash('success', 'User status updated successfully');
+            
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            Session::flash('error', 'Failed to update user status');
+        }
+        
+        $this->redirect('/admin/users');
+    }
+
+    public function deleteUser(): void
+    {
+        Auth::requireRole(['admin']);
+        
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            Session::flash('error', 'Method not allowed');
+            $this->redirect('/admin/users');
+        }
+        
+        $token = $_POST['_csrf'] ?? null;
+        if (!$token || !CSRF::check($token)) {
+            http_response_code(419);
+            Session::flash('error', 'Invalid CSRF token');
+            $this->redirect('/admin/users');
+        }
+        
+        $userId = (int)($_POST['user_id'] ?? 0);
+        
+        if ($userId <= 0) {
+            Session::flash('error', 'Invalid user specified');
+            $this->redirect('/admin/users');
+        }
+        
+        try {
+            $userModel = new User();
+            $db = $userModel->getDb();
+            
+            // Delete user
+            $stmt = $db->prepare('DELETE FROM users WHERE id = :id');
+            $stmt->execute(['id' => $userId]);
+            
+            Session::flash('success', 'User deleted successfully');
+            
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            Session::flash('error', 'Failed to delete user');
+        }
+        
+        $this->redirect('/admin/users');
+    }
 
     public function approveVendor(): void
     {
