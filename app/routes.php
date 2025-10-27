@@ -18,6 +18,7 @@ $router->get('/logout', [AuthController::class, 'logout']);
 // Admin
 $router->get('/admin', [AdminController::class, 'index']);
 $router->get('/admin/users', [AdminController::class, 'users']);
+$router->post('/admin/users/create', [AdminController::class, 'createUser']); // ADD THIS LINE
 $router->get('/admin/vendors', [AdminController::class, 'vendors']);
 $router->post('/admin/vendors/approve', [AdminController::class, 'approveVendor']);
 $router->get('/admin/categories', [AdminController::class, 'categories']);

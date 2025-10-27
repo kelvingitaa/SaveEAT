@@ -1,4 +1,6 @@
 <?php
+use App\Core\CSRF;
+$token = CSRF::token();
 ob_start();
 ?>
 <style>
@@ -11,8 +13,43 @@ ob_start();
 <div class="user-table-section">
   <div class="user-table-header">
     <h2>User Management</h2>
-    <button class="btn btn-primary" onclick="alert('Add User')">Add User</button>
+    <button class="btn btn-primary" onclick="showAddUserForm()">Add User</button>
   </div>
+  
+  <!-- Add User Form (initially hidden) -->
+  <div id="addUserForm" class="mb-4 p-3 border rounded" style="display: none;">
+    <h4>Add New User</h4>
+    <form method="post" action="<?= BASE_URL ?>/admin/users/create">
+      <input type="hidden" name="_csrf" value="<?= $token ?>">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Name</label>
+          <input type="text" name="name" class="form-control" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" class="form-control" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Password</label>
+          <input type="password" name="password" class="form-control" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Role</label>
+          <select name="role" class="form-select" required>
+            <option value="consumer">Consumer</option>
+            <option value="vendor">Vendor</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-success">Create User</button>
+          <button type="button" class="btn btn-secondary" onclick="hideAddUserForm()">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
   <form class="user-table-filters mb-3" method="get" action="<?= BASE_URL ?>/admin/users">
     <select name="role" class="form-select">
       <option value="">All Roles</option>
@@ -59,25 +96,17 @@ ob_start();
     </table>
   </div>
 </div>
-<?php
-ob_start();
-?>
-<h3>Users</h3>
-<table class="table table-bordered table-striped">
-  <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th></tr></thead>
-  <tbody>
-  <?php foreach ($users as $u): ?>
-    <tr>
-      <td><?= (int)$u['id'] ?></td>
-      <td><?= htmlspecialchars($u['name']) ?></td>
-      <td><?= htmlspecialchars($u['email']) ?></td>
-      <td><?= htmlspecialchars($u['role']) ?></td>
-      <td><?= htmlspecialchars($u['status']) ?></td>
-      <td><?= htmlspecialchars($u['created_at']) ?></td>
-    </tr>
-  <?php endforeach; ?>
-  </tbody>
-</table>
+
+<script>
+function showAddUserForm() {
+  document.getElementById('addUserForm').style.display = 'block';
+}
+
+function hideAddUserForm() {
+  document.getElementById('addUserForm').style.display = 'none';
+}
+</script>
+
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../layouts/main.php';

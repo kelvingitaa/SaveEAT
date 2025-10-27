@@ -120,6 +120,75 @@ class AdminController extends Controller
         ]);
     }
 
+
+
+    public function createUser(): void
+{
+    Auth::requireRole(['admin']);
+    
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        Session::flash('error', 'Method not allowed');
+        $this->redirect('/admin/users');
+    }
+    
+    $token = $_POST['_csrf'] ?? null;
+    if (!$token || !CSRF::check($token)) {
+        http_response_code(419);
+        Session::flash('error', 'Invalid CSRF token');
+        $this->redirect('/admin/users');
+    }
+    
+    $name = trim((string)($_POST['name'] ?? ''));
+    $email = trim((string)($_POST['email'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
+    $role = (string)($_POST['role'] ?? 'consumer');
+    
+    // Validation
+    if (empty($name) || empty($email) || empty($password)) {
+        Session::flash('error', 'All fields are required');
+        $this->redirect('/admin/users');
+    }
+    
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        Session::flash('error', 'Invalid email format');
+        $this->redirect('/admin/users');
+    }
+    
+    if (!in_array($role, ['admin', 'vendor', 'consumer'])) {
+        Session::flash('error', 'Invalid role selected');
+        $this->redirect('/admin/users');
+    }
+    
+    try {
+        $userModel = new User();
+        
+        // Check if email already exists
+        $existingUser = $userModel->findByEmail($email);
+        if ($existingUser) {
+            Session::flash('error', 'Email already exists');
+            $this->redirect('/admin/users');
+        }
+        
+        // Create user
+        $userId = $userModel->create([
+            'name' => $name,
+            'email' => $email,
+            'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+            'role' => $role,
+            'status' => 'active'
+        ]);
+        
+        Session::flash('success', 'User created successfully');
+        
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to create user');
+    }
+    
+    $this->redirect('/admin/users');
+}
+
     public function approveVendor(): void
     {
         Auth::requireRole(['admin']);
