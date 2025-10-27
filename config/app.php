@@ -1,7 +1,12 @@
 <?php
-// Copy to app.php and adjust
-const APP_NAME = 'SaveEat';
-const BASE_URL = 'http://localhost/SaveEAT/public'; // adjust to your setup
+// Dynamic BASE_URL that works automatically
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$base_path = dirname($_SERVER['SCRIPT_NAME'] ?? '');
+define('BASE_URL', $protocol . '://' . $host . $base_path);
+
+// App configuration
+const APP_NAME = 'SaveEAT';
 const APP_ENV = 'local';
 const APP_DEBUG = true;
 
