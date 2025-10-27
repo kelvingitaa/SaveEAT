@@ -1,4 +1,3 @@
-
 <?php
 ob_start();
 ?>
@@ -29,7 +28,7 @@ ob_start();
     <span class="icon" style="background:#22c55e1a;color:#22c55e;"><i class="bi bi-currency-dollar"></i></span>
     <div>
       <div class="stat-title">Revenue</div>
-      <div class="stat-value">$45,678</div>
+      <div class="stat-value">KSh 456,780</div>
       <div class="stat-change positive">+8.2%</div>
     </div>
   </div>

@@ -32,6 +32,7 @@ $users = [
     ['System Admin', 'admin@saveeat.com', 'admin123', 'admin', 'active'],
     ['Pizza Hub Owner', 'vendor1@saveeat.com', 'vendor123', 'vendor', 'active'],
     ['Burger Joint Owner', 'vendor2@saveeat.com', 'vendor123', 'vendor', 'active'],
+    ['Suspended Vendor', 'suspended@saveeat.com', 'vendor123', 'vendor', 'suspended'],
     ['John Consumer', 'consumer@saveeat.com', 'consumer123', 'consumer', 'active']
 ];
 
@@ -49,16 +50,47 @@ foreach ($users as $user) {
     echo "✓ User created: {$user[1]}\n";
 }
 
-// Seed Vendors
+// First, check if vendors table has status column
+$hasStatusColumn = false;
+try {
+    $result = $pdo->query("SHOW COLUMNS FROM vendors LIKE 'status'");
+    $hasStatusColumn = $result->rowCount() > 0;
+} catch (Exception $e) {
+    echo "Note: Checking status column failed: " . $e->getMessage() . "\n";
+}
+
+// Seed Vendors - handle both with and without status column
 $vendors = [
     [$userIds[1], 'Pizza Hub', 'Westlands Mall, Nairobi', '0700111222', true],
-    [$userIds[2], 'Burger Joint', 'CBD Nairobi', '0700333444', true]
+    [$userIds[2], 'Burger Joint', 'CBD Nairobi', '0700333444', true],
+    [$userIds[3], 'Suspended Restaurant', 'Karen, Nairobi', '0700555666', true]
 ];
 
 $vendorIds = [];
 foreach ($vendors as $vendor) {
-    $stmt = $pdo->prepare("INSERT INTO vendors (user_id, business_name, location, contact_phone, approved, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())");
-    $stmt->execute($vendor);
+    if ($hasStatusColumn) {
+        // Determine status based on vendor data
+        $status = ($vendor[4] && $vendor[1] !== 'Suspended Restaurant') ? 'active' : 'suspended';
+        $stmt = $pdo->prepare("INSERT INTO vendors (user_id, business_name, location, contact_phone, approved, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())");
+        $stmt->execute([
+            $vendor[0], // user_id
+            $vendor[1], // business_name
+            $vendor[2], // location
+            $vendor[3], // contact_phone
+            $vendor[4], // approved
+            $status      // status
+        ]);
+    } else {
+        // Fallback without status column
+        $stmt = $pdo->prepare("INSERT INTO vendors (user_id, business_name, location, contact_phone, approved, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())");
+        $stmt->execute([
+            $vendor[0], // user_id
+            $vendor[1], // business_name
+            $vendor[2], // location
+            $vendor[3], // contact_phone
+            $vendor[4]  // approved
+        ]);
+    }
     $vendorIds[] = $pdo->lastInsertId();
     echo "✓ Vendor created: {$vendor[1]}\n";
 }
@@ -101,3 +133,10 @@ echo "You can now login with:\n";
 echo "- Admin: admin@saveeat.com / admin123\n";
 echo "- Vendor: vendor1@saveeat.com / vendor123\n";
 echo "- Consumer: consumer@saveeat.com / consumer123\n";
+echo "- Suspended Vendor: suspended@saveeat.com / vendor123\n";
+
+// If status column was missing, inform the user
+if (!$hasStatusColumn) {
+    echo "\n⚠️  Note: Vendors table is missing the 'status' column.\n";
+    echo "   Please run the migration again to add it: php scripts/migrate.php\n";
+}

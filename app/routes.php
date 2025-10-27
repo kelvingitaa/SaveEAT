@@ -31,6 +31,10 @@ $router->post('/admin/categories', [AdminController::class, 'categoryStore']);
 $router->get('/vendor', [VendorController::class, 'index']);
 $router->get('/vendor/items', [VendorController::class, 'items']);
 $router->post('/vendor/items', [VendorController::class, 'itemStore']);
+$router->post('/admin/vendors/create', [AdminController::class, 'createVendor']);
+$router->post('/admin/vendors/update', [AdminController::class, 'updateVendor']);
+$router->post('/admin/vendors/toggle-status', [AdminController::class, 'toggleVendorStatus']);
+$router->post('/admin/vendors/delete', [AdminController::class, 'deleteVendor']);
 
 // Consumer
 $router->get('/consumer', [ConsumerController::class, 'index']);

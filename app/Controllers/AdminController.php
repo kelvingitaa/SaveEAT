@@ -29,7 +29,8 @@ class AdminController extends Controller
         $revenue = (float)$db->query("SELECT SUM(total_price) FROM orders WHERE status IN ('paid','completed')")->fetchColumn() ?: 0.0;
         $topItems = $db->query("SELECT fi.name, COUNT(oi.id) as sold FROM order_items oi JOIN food_items fi ON fi.id = oi.food_item_id GROUP BY fi.id ORDER BY sold DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
         $expiringItems = $db->query("SELECT name, expiry_date FROM food_items WHERE expiry_date <= DATE_ADD(CURDATE(), INTERVAL 3 DAY) AND status='active'")->fetchAll(PDO::FETCH_ASSOC);
-        $suspendedVendors = $db->query("SELECT business_name FROM vendors WHERE approved=0")->fetchAll(PDO::FETCH_ASSOC);
+        $suspendedVendors = $db->query("SELECT business_name FROM vendors WHERE status='suspended'")->fetchAll(PDO::FETCH_ASSOC);
+        $pendingVendors = $db->query("SELECT business_name FROM vendors WHERE approved=0 AND status='pending'")->fetchAll(PDO::FETCH_ASSOC);
         $users = $db->query("SELECT name,email,role,status FROM users ORDER BY created_at DESC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
         $this->view('admin/dashboard', [
             'userCount' => $userCount,
@@ -44,6 +45,7 @@ class AdminController extends Controller
             'topItems' => $topItems,
             'expiringItems' => $expiringItems,
             'suspendedVendors' => $suspendedVendors,
+            'pendingVendors' => $pendingVendors,
             'users' => $users
         ]);
     }
@@ -226,7 +228,7 @@ class AdminController extends Controller
             $this->redirect('/admin/users');
         }
         
-        if (!in_array($status, ['active', 'pending', 'suspended'])) {
+        if (!in_array($status, ['active', 'suspended', 'pending'])) {
             Session::flash('error', 'Invalid status selected');
             $this->redirect('/admin/users');
         }
@@ -301,13 +303,13 @@ class AdminController extends Controller
                 $this->redirect('/admin/users');
             }
             
-            // Toggle status
+            // Toggle status between active and suspended
             $newStatus = $currentStatus === 'active' ? 'suspended' : 'active';
             
             $stmt = $db->prepare('UPDATE users SET status = :status, updated_at = NOW() WHERE id = :id');
             $stmt->execute(['status' => $newStatus, 'id' => $userId]);
             
-            Session::flash('success', 'User status updated successfully');
+            Session::flash('success', "User " . ($newStatus === 'suspended' ? 'suspended' : 'activated') . " successfully");
             
         } catch (\Throwable $e) {
             http_response_code(500);
@@ -359,6 +361,238 @@ class AdminController extends Controller
         $this->redirect('/admin/users');
     }
 
+    public function createVendor(): void
+    {
+        Auth::requireRole(['admin']);
+        
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            Session::flash('error', 'Method not allowed');
+            $this->redirect('/admin/vendors');
+        }
+        
+        $token = $_POST['_csrf'] ?? null;
+        if (!$token || !CSRF::check($token)) {
+            http_response_code(419);
+            Session::flash('error', 'Invalid CSRF token');
+            $this->redirect('/admin/vendors');
+        }
+        
+        $businessName = trim((string)($_POST['business_name'] ?? ''));
+        $location = trim((string)($_POST['location'] ?? ''));
+        $contactPhone = trim((string)($_POST['contact_phone'] ?? ''));
+        $userId = (int)($_POST['user_id'] ?? 0);
+        
+        // Validation
+        if (empty($businessName) || empty($location) || empty($contactPhone) || $userId <= 0) {
+            Session::flash('error', 'All fields are required');
+            $this->redirect('/admin/vendors');
+        }
+        
+        try {
+            $vendorModel = new Vendor();
+            $db = $vendorModel->getDb();
+            
+            // Check if user exists and is a vendor
+            $userStmt = $db->prepare('SELECT id, role FROM users WHERE id = :user_id');
+            $userStmt->execute(['user_id' => $userId]);
+            $user = $userStmt->fetch();
+            
+            if (!$user) {
+                Session::flash('error', 'User not found');
+                $this->redirect('/admin/vendors');
+            }
+            
+            if ($user['role'] !== 'vendor') {
+                Session::flash('error', 'User must have vendor role');
+                $this->redirect('/admin/vendors');
+            }
+            
+            // Check if vendor already exists for this user
+            $vendorStmt = $db->prepare('SELECT id FROM vendors WHERE user_id = :user_id');
+            $vendorStmt->execute(['user_id' => $userId]);
+            if ($vendorStmt->fetchColumn()) {
+                Session::flash('error', 'Vendor already exists for this user');
+                $this->redirect('/admin/vendors');
+            }
+            
+            // Create vendor - auto-approve when created by admin
+            $stmt = $db->prepare('INSERT INTO vendors (user_id, business_name, location, contact_phone, approved, status, created_at, updated_at) VALUES (:user_id, :business_name, :location, :contact_phone, :approved, :status, NOW(), NOW())');
+            $stmt->execute([
+                'user_id' => $userId,
+                'business_name' => $businessName,
+                'location' => $location,
+                'contact_phone' => $contactPhone,
+                'approved' => 1,
+                'status' => 'active'
+            ]);
+            
+            Session::flash('success', 'Vendor created successfully');
+            
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            Session::flash('error', 'Failed to create vendor: ' . $e->getMessage());
+        }
+        
+        $this->redirect('/admin/vendors');
+    }
+
+    public function updateVendor(): void
+    {
+        Auth::requireRole(['admin']);
+        
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            Session::flash('error', 'Method not allowed');
+            $this->redirect('/admin/vendors');
+        }
+        
+        $token = $_POST['_csrf'] ?? null;
+        if (!$token || !CSRF::check($token)) {
+            http_response_code(419);
+            Session::flash('error', 'Invalid CSRF token');
+            $this->redirect('/admin/vendors');
+        }
+        
+        $vendorId = (int)($_POST['vendor_id'] ?? 0);
+        $businessName = trim((string)($_POST['business_name'] ?? ''));
+        $location = trim((string)($_POST['location'] ?? ''));
+        $contactPhone = trim((string)($_POST['contact_phone'] ?? ''));
+        
+        // Validation
+        if (empty($businessName) || empty($location) || empty($contactPhone) || $vendorId <= 0) {
+            Session::flash('error', 'All fields are required');
+            $this->redirect('/admin/vendors');
+        }
+        
+        try {
+            $vendorModel = new Vendor();
+            $db = $vendorModel->getDb();
+            
+            // Update vendor
+            $stmt = $db->prepare('UPDATE vendors SET business_name = :business_name, location = :location, contact_phone = :contact_phone, updated_at = NOW() WHERE id = :id');
+            $stmt->execute([
+                'business_name' => $businessName,
+                'location' => $location,
+                'contact_phone' => $contactPhone,
+                'id' => $vendorId
+            ]);
+            
+            Session::flash('success', 'Vendor updated successfully');
+            
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            Session::flash('error', 'Failed to update vendor');
+        }
+        
+        $this->redirect('/admin/vendors');
+    }
+
+    public function toggleVendorStatus(): void
+    {
+        Auth::requireRole(['admin']);
+        
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            Session::flash('error', 'Method not allowed');
+            $this->redirect('/admin/vendors');
+        }
+        
+        $token = $_POST['_csrf'] ?? null;
+        if (!$token || !CSRF::check($token)) {
+            http_response_code(419);
+            Session::flash('error', 'Invalid CSRF token');
+            $this->redirect('/admin/vendors');
+        }
+        
+        $vendorId = (int)($_POST['vendor_id'] ?? 0);
+        
+        if ($vendorId <= 0) {
+            Session::flash('error', 'Invalid vendor specified');
+            $this->redirect('/admin/vendors');
+        }
+        
+        try {
+            $vendorModel = new Vendor();
+            $db = $vendorModel->getDb();
+            
+            // Get current status
+            $stmt = $db->prepare('SELECT status FROM vendors WHERE id = :id');
+            $stmt->execute(['id' => $vendorId]);
+            $currentStatus = $stmt->fetchColumn();
+            
+            if (!$currentStatus) {
+                Session::flash('error', 'Vendor not found');
+                $this->redirect('/admin/vendors');
+            }
+            
+            // Toggle between active and suspended (only if vendor is approved)
+            $stmt = $db->prepare('SELECT approved FROM vendors WHERE id = :id');
+            $stmt->execute(['id' => $vendorId]);
+            $isApproved = (bool)$stmt->fetchColumn();
+            
+            if (!$isApproved) {
+                Session::flash('error', 'Cannot suspend/activate a pending vendor. Please approve first.');
+                $this->redirect('/admin/vendors');
+            }
+            
+            $newStatus = $currentStatus === 'active' ? 'suspended' : 'active';
+            
+            $stmt = $db->prepare('UPDATE vendors SET status = :status, updated_at = NOW() WHERE id = :id');
+            $stmt->execute(['status' => $newStatus, 'id' => $vendorId]);
+            
+            Session::flash('success', "Vendor " . ($newStatus === 'suspended' ? 'suspended' : 'activated') . " successfully");
+            
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            Session::flash('error', 'Failed to update vendor status');
+        }
+        
+        $this->redirect('/admin/vendors');
+    }
+
+    public function deleteVendor(): void
+    {
+        Auth::requireRole(['admin']);
+        
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            Session::flash('error', 'Method not allowed');
+            $this->redirect('/admin/vendors');
+        }
+        
+        $token = $_POST['_csrf'] ?? null;
+        if (!$token || !CSRF::check($token)) {
+            http_response_code(419);
+            Session::flash('error', 'Invalid CSRF token');
+            $this->redirect('/admin/vendors');
+        }
+        
+        $vendorId = (int)($_POST['vendor_id'] ?? 0);
+        
+        if ($vendorId <= 0) {
+            Session::flash('error', 'Invalid vendor specified');
+            $this->redirect('/admin/vendors');
+        }
+        
+        try {
+            $vendorModel = new Vendor();
+            $db = $vendorModel->getDb();
+            
+            // Delete vendor
+            $stmt = $db->prepare('DELETE FROM vendors WHERE id = :id');
+            $stmt->execute(['id' => $vendorId]);
+            
+            Session::flash('success', 'Vendor deleted successfully');
+            
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            Session::flash('error', 'Failed to delete vendor');
+        }
+        
+        $this->redirect('/admin/vendors');
+    }
+
     public function approveVendor(): void
     {
         Auth::requireRole(['admin']);
@@ -379,7 +613,13 @@ class AdminController extends Controller
             $this->redirect('/admin/vendors');
         }
         try {
-            (new Vendor())->approve($vendorId);
+            $vendorModel = new Vendor();
+            $db = $vendorModel->getDb();
+            
+            // Update both approved and status
+            $stmt = $db->prepare('UPDATE vendors SET approved = 1, status = "active", updated_at = NOW() WHERE id = :id');
+            $stmt->execute(['id' => $vendorId]);
+            
             Session::flash('success', 'Vendor approved successfully');
         } catch (\Throwable $e) {
             http_response_code(500);
@@ -398,6 +638,7 @@ class AdminController extends Controller
         $offset = ($page - 1) * $perPage;
         
         // Get filter parameters
+        $status = $_GET['status'] ?? '';
         $approved = $_GET['approved'] ?? '';
         $search = $_GET['q'] ?? '';
         
@@ -405,6 +646,11 @@ class AdminController extends Controller
             // Build WHERE conditions
             $whereConditions = [];
             $params = [];
+            
+            if (!empty($status)) {
+                $whereConditions[] = 'status = :status';
+                $params['status'] = $status;
+            }
             
             if ($approved !== '') {
                 $whereConditions[] = 'approved = :approved';
@@ -424,7 +670,12 @@ class AdminController extends Controller
             $stmt->execute($params);
             $total = (int)$stmt->fetchColumn();
             
-            $sql = "SELECT * FROM vendors $whereClause ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+            $sql = "SELECT v.*, u.email, u.name as owner_name 
+                   FROM vendors v 
+                   LEFT JOIN users u ON v.user_id = u.id 
+                   $whereClause 
+                   ORDER BY v.created_at DESC 
+                   LIMIT :limit OFFSET :offset";
             $stmt = $db->prepare($sql);
             
             foreach ($params as $key => $value) {

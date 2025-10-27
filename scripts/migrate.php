@@ -38,12 +38,12 @@ $migrations = [
     "CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
         role ENUM('admin','vendor','consumer') NOT NULL,
         name VARCHAR(255) NOT NULL,
         phone VARCHAR(20),
         address TEXT,
-        status ENUM('active','inactive','pending') DEFAULT 'active',
+        status ENUM('active','suspended','pending') DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )",
@@ -60,10 +60,11 @@ $migrations = [
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
         business_name VARCHAR(255) NOT NULL,
-        business_address TEXT,
-        business_phone VARCHAR(20),
+        location VARCHAR(255) NOT NULL,
+        contact_phone VARCHAR(20) NOT NULL,
         approved BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )",
 
@@ -78,7 +79,7 @@ $migrations = [
         expiry_date DATE NOT NULL,
         stock INT DEFAULT 0,
         image_path VARCHAR(500),
-        status ENUM('active','inactive','sold_out') DEFAULT 'active',
+        status ENUM('active','inactive','sold_out','expired') DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE,
@@ -88,8 +89,8 @@ $migrations = [
     "CREATE TABLE IF NOT EXISTS orders (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
-        total_amount DECIMAL(10,2) NOT NULL,
-        status ENUM('pending','confirmed','preparing','ready','completed','cancelled') DEFAULT 'pending',
+        total_price DECIMAL(10,2) NOT NULL,
+        status ENUM('pending','paid','preparing','ready','completed','cancelled') DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -116,6 +117,27 @@ foreach ($migrations as $i => $sql) {
     } catch (Exception $e) {
         echo "✗ Migration " . ($i + 1) . " failed: " . $e->getMessage() . "\n";
     }
+}
+
+
+echo "Checking for missing columns...\n";
+try {
+    $result = DB::pdo()->query("SHOW COLUMNS FROM vendors LIKE 'status'");
+    if ($result->rowCount() === 0) {
+        echo "Adding status column to vendors table...\n";
+        DB::pdo()->exec("ALTER TABLE vendors ADD COLUMN status ENUM('active','suspended','pending') DEFAULT 'pending' AFTER approved");
+        echo "✓ Status column added successfully\n";
+        
+        // Update existing vendor statuses based on approved field
+        echo "Updating existing vendor statuses...\n";
+        DB::pdo()->exec("UPDATE vendors SET status = 'active' WHERE approved = 1");
+        DB::pdo()->exec("UPDATE vendors SET status = 'pending' WHERE approved = 0");
+        echo "✓ Vendor statuses updated successfully\n";
+    } else {
+        echo "✓ Status column already exists\n";
+    }
+} catch (Exception $e) {
+    echo "✗ Failed to check/add status column: " . $e->getMessage() . "\n";
 }
 
 echo "Migrations completed!\n";
