@@ -718,23 +718,28 @@ class AdminController extends Controller
     public function categoryStore(): void
     {
         Auth::requireRole(['admin']);
+        
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
             http_response_code(405);
             Session::flash('error', 'Method not allowed');
             $this->redirect('/admin/categories');
         }
+        
         $token = $_POST['_csrf'] ?? null;
         if (!$token || !CSRF::check($token)) {
             http_response_code(419);
             Session::flash('error', 'Invalid CSRF token');
             $this->redirect('/admin/categories');
         }
+        
         $name = trim((string)($_POST['name'] ?? ''));
         $description = trim((string)($_POST['description'] ?? ''));
+        
         if ($name === '') {
             Session::flash('error', 'Category name is required');
             $this->redirect('/admin/categories');
         }
+        
         $db = (new Category())->getDb();
         try {
             // prevent duplicates
@@ -744,13 +749,115 @@ class AdminController extends Controller
                 Session::flash('error', 'Category with that name already exists');
                 $this->redirect('/admin/categories');
             }
-            $stmt = $db->prepare('INSERT INTO categories (name,description,created_at,updated_at) VALUES (:name,:description,NOW(),NOW())');
+            
+            $stmt = $db->prepare('INSERT INTO categories (name, description, created_at, updated_at) VALUES (:name, :description, NOW(), NOW())');
             $stmt->execute(['name' => $name, 'description' => $description]);
-            Session::flash('success', 'Category created');
+            
+            Session::flash('success', 'Category created successfully');
+            
         } catch (\Throwable $e) {
             http_response_code(500);
-            Session::flash('error', 'Failed to save category');
+            Session::flash('error', 'Failed to save category: ' . $e->getMessage());
         }
+        
+        $this->redirect('/admin/categories');
+    }
+
+    public function categoryUpdate(): void
+    {
+        Auth::requireRole(['admin']);
+        
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            Session::flash('error', 'Method not allowed');
+            $this->redirect('/admin/categories');
+        }
+        
+        $token = $_POST['_csrf'] ?? null;
+        if (!$token || !CSRF::check($token)) {
+            http_response_code(419);
+            Session::flash('error', 'Invalid CSRF token');
+            $this->redirect('/admin/categories');
+        }
+        
+        $categoryId = (int)($_POST['category_id'] ?? 0);
+        $name = trim((string)($_POST['name'] ?? ''));
+        $description = trim((string)($_POST['description'] ?? ''));
+        
+        if ($categoryId <= 0 || empty($name)) {
+            Session::flash('error', 'Category ID and name are required');
+            $this->redirect('/admin/categories');
+        }
+        
+        $db = (new Category())->getDb();
+        try {
+            // Check if name already exists for another category
+            $chk = $db->prepare('SELECT id FROM categories WHERE name = :name AND id != :id LIMIT 1');
+            $chk->execute(['name' => $name, 'id' => $categoryId]);
+            if ($chk->fetchColumn()) {
+                Session::flash('error', 'Category with that name already exists');
+                $this->redirect('/admin/categories');
+            }
+            
+            $stmt = $db->prepare('UPDATE categories SET name = :name, description = :description, updated_at = NOW() WHERE id = :id');
+            $stmt->execute(['name' => $name, 'description' => $description, 'id' => $categoryId]);
+            
+            Session::flash('success', 'Category updated successfully');
+            
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            Session::flash('error', 'Failed to update category: ' . $e->getMessage());
+        }
+        
+        $this->redirect('/admin/categories');
+    }
+
+    public function categoryDelete(): void
+    {
+        Auth::requireRole(['admin']);
+        
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            Session::flash('error', 'Method not allowed');
+            $this->redirect('/admin/categories');
+        }
+        
+        $token = $_POST['_csrf'] ?? null;
+        if (!$token || !CSRF::check($token)) {
+            http_response_code(419);
+            Session::flash('error', 'Invalid CSRF token');
+            $this->redirect('/admin/categories');
+        }
+        
+        $categoryId = (int)($_POST['category_id'] ?? 0);
+        
+        if ($categoryId <= 0) {
+            Session::flash('error', 'Invalid category specified');
+            $this->redirect('/admin/categories');
+        }
+        
+        $db = (new Category())->getDb();
+        try {
+            // Check if category is being used by any food items
+            $checkUsage = $db->prepare('SELECT COUNT(*) FROM food_items WHERE category_id = :category_id');
+            $checkUsage->execute(['category_id' => $categoryId]);
+            $usageCount = $checkUsage->fetchColumn();
+            
+            if ($usageCount > 0) {
+                Session::flash('error', 'Cannot delete category. It is being used by ' . $usageCount . ' food item(s).');
+                $this->redirect('/admin/categories');
+            }
+            
+            $stmt = $db->prepare('DELETE FROM categories WHERE id = :id');
+            $stmt->execute(['id' => $categoryId]);
+            
+            Session::flash('success', 'Category deleted successfully');
+            
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            Session::flash('error', 'Failed to delete category: ' . $e->getMessage());
+        }
+        
         $this->redirect('/admin/categories');
     }
 }
