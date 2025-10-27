@@ -39,66 +39,88 @@ class VendorController extends Controller
     public function itemStore(): void
     {
         Auth::requireRole(['vendor']);
-        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             http_response_code(405);
             Session::flash('error', 'Method not allowed');
             $this->redirect('/vendor/items');
         }
+        
         $token = $_POST['_csrf'] ?? null;
         if (!$token || !CSRF::check($token)) {
             http_response_code(419);
             Session::flash('error', 'Invalid CSRF token');
             $this->redirect('/vendor/items');
         }
-        $vendor = (new Vendor())->byUser((int)Auth::id());
+        
+        $vendorModel = new Vendor();
+        $vendor = $vendorModel->findByUserId(Auth::userId());
+        
         if (!$vendor || !$vendor['approved']) {
             http_response_code(403);
             Session::flash('error', 'Your vendor account is not approved yet');
             $this->redirect('/vendor');
         }
-
-        $name = trim((string)($_POST['name'] ?? ''));
-        $categoryId = filter_input(INPUT_POST, 'category_id', FILTER_VALIDATE_INT) ?: 0;
+        
+        $name = trim($_POST['name'] ?? '');
+        $description = trim($_POST['description'] ?? '');
         $price = (float)($_POST['price'] ?? 0);
-        $discount = max(0, min(90, (int)($_POST['discount_percent'] ?? 0)));
-        $expiry = $_POST['expiry_date'] ?? date('Y-m-d');
+        $discountPercent = max(0, min(90, (int)($_POST['discount_percent'] ?? 0)));
+        $expiryDate = $_POST['expiry_date'] ?? '';
         $stock = max(0, (int)($_POST['stock'] ?? 0));
-        $description = trim((string)($_POST['description'] ?? ''));
-
-        if ($name === '' || $categoryId <= 0 || $price <= 0 || !$expiry) {
-            Session::flash('error', 'Please fill all required fields with valid values');
+        $categoryId = (int)($_POST['category_id'] ?? 0);
+        
+        // Validation
+        if (empty($name) || $price <= 0 || empty($expiryDate) || $stock <= 0 || $categoryId <= 0) {
+            Session::flash('error', 'All fields are required');
             $this->redirect('/vendor/items');
         }
-
-        $image = null;
+        
+        // Food Safety: Check if expiry is at least 24 hours from now
+        $foodModel = new FoodItem();
+        
+        if (!$foodModel->enforce24HourRule(['expiry_date' => $expiryDate])) {
+            Session::flash('error', 'Food items must be safe to eat for at least 24 hours. Please set an expiry date at least 24 hours from now.');
+            $this->redirect('/vendor/items');
+        }
+        
+        // Handle image upload
+        $imagePath = null;
         if (!empty($_FILES['image']['name'])) {
-            $img = Uploader::image($_FILES['image']);
-            if ($img === null) {
+            $image = Uploader::image($_FILES['image']);
+            if ($image === null) {
                 Session::flash('error', 'Image upload failed. Ensure file type and size are valid.');
                 $this->redirect('/vendor/items');
             }
-            $image = $img;
+            $imagePath = $image;
         }
-
-        $data = [
-            'vendor_id' => (int)$vendor['id'],
-            'category_id' => (int)$categoryId,
-            'name' => $name,
-            'description' => $description,
-            'price' => $price,
-            'discount_percent' => $discount,
-            'expiry_date' => $expiry,
-            'stock' => $stock,
-            'image_path' => $image,
-            'status' => 'active',
-        ];
+        
         try {
-            (new FoodItem())->create($data);
-            Session::flash('success', 'Item created successfully');
+            $db = $foodModel->getDb();
+            $stmt = $db->prepare("
+                INSERT INTO food_items (vendor_id, category_id, name, description, price, 
+                                      discount_percent, expiry_date, stock, image_path, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+            ");
+            $stmt->execute([
+                $vendor['id'], 
+                $categoryId, 
+                $name, 
+                $description, 
+                $price, 
+                $discountPercent, 
+                $expiryDate, 
+                $stock,
+                $imagePath
+            ]);
+            
+            Session::flash('success', 'Food item added successfully!');
+            
         } catch (\Throwable $e) {
             http_response_code(500);
-            Session::flash('error', 'Failed to create item');
+            Session::flash('error', 'Failed to add food item: ' . $e->getMessage());
         }
+        
         $this->redirect('/vendor/items');
     }
 }

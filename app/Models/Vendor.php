@@ -18,6 +18,13 @@ class Vendor extends BaseModel
         return (int)$this->db->lastInsertId();
     }
 
+    public function findByUserId(int $userId): ?array
+{
+    $stmt = $this->db->prepare("SELECT * FROM vendors WHERE user_id = :user_id LIMIT 1");
+    $stmt->execute(['user_id' => $userId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+}
+
     public function byUser(int $userId): ?array
     {
         $stmt = $this->db->prepare('SELECT * FROM vendors WHERE user_id = :uid LIMIT 1');

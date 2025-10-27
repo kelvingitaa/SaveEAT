@@ -20,12 +20,10 @@ try {
 echo "Seeding database...\n";
 
 // Clear existing data (in reverse order due to foreign keys)
-$pdo->exec("DELETE FROM order_items");
-$pdo->exec("DELETE FROM orders");
-$pdo->exec("DELETE FROM food_items");
-$pdo->exec("DELETE FROM vendors");
-$pdo->exec("DELETE FROM categories");
-$pdo->exec("DELETE FROM users");
+$tables = ['order_items', 'orders', 'food_items', 'vendor_verifications', 'vendors', 'shelters', 'categories', 'users'];
+foreach ($tables as $table) {
+    $pdo->exec("DELETE FROM $table");
+}
 
 // Seed Users
 $users = [
@@ -33,69 +31,63 @@ $users = [
     ['Pizza Hub Owner', 'vendor1@saveeat.com', 'vendor123', 'vendor', 'active'],
     ['Burger Joint Owner', 'vendor2@saveeat.com', 'vendor123', 'vendor', 'active'],
     ['Suspended Vendor', 'suspended@saveeat.com', 'vendor123', 'vendor', 'suspended'],
-    ['John Consumer', 'consumer@saveeat.com', 'consumer123', 'consumer', 'active']
+    ['John Consumer', 'consumer@saveeat.com', 'consumer123', 'consumer', 'active'],
+    ['Hope Shelter Manager', 'hope@shelter.com', 'shelter123', 'shelter', 'active'],
+    ['Grace Home Manager', 'grace@shelter.com', 'shelter123', 'shelter', 'active']
 ];
 
 $userIds = [];
 foreach ($users as $user) {
     $stmt = $pdo->prepare("INSERT INTO users (name, email, password_hash, role, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())");
     $stmt->execute([
-        $user[0], // name
-        $user[1], // email
-        password_hash($user[2], PASSWORD_DEFAULT), // password_hash
-        $user[3], // role
-        $user[4]  // status
+        $user[0], $user[1], password_hash($user[2], PASSWORD_DEFAULT), $user[3], $user[4]
     ]);
     $userIds[] = $pdo->lastInsertId();
     echo "✓ User created: {$user[1]}\n";
 }
 
-// First, check if vendors table has status column
-$hasStatusColumn = false;
-try {
-    $result = $pdo->query("SHOW COLUMNS FROM vendors LIKE 'status'");
-    $hasStatusColumn = $result->rowCount() > 0;
-} catch (Exception $e) {
-    echo "Note: Checking status column failed: " . $e->getMessage() . "\n";
-}
-
-// Seed Vendors - handle both with and without status column
+// Seed Vendors
 $vendors = [
-    [$userIds[1], 'Pizza Hub', 'Westlands Mall, Nairobi', '0700111222', true],
-    [$userIds[2], 'Burger Joint', 'CBD Nairobi', '0700333444', true],
-    [$userIds[3], 'Suspended Restaurant', 'Karen, Nairobi', '0700555666', true]
+    [$userIds[1], 'Pizza Hub', 'Westlands Mall, Nairobi', '0700111222', true, 'active'],
+    [$userIds[2], 'Burger Joint', 'CBD Nairobi', '0700333444', true, 'active'],
+    [$userIds[3], 'Suspended Restaurant', 'Karen, Nairobi', '0700555666', true, 'suspended']
 ];
 
 $vendorIds = [];
 foreach ($vendors as $vendor) {
-    if ($hasStatusColumn) {
-        // Determine status based on vendor data
-        $status = ($vendor[4] && $vendor[1] !== 'Suspended Restaurant') ? 'active' : 'suspended';
-        $stmt = $pdo->prepare("INSERT INTO vendors (user_id, business_name, location, contact_phone, approved, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())");
-        $stmt->execute([
-            $vendor[0], // user_id
-            $vendor[1], // business_name
-            $vendor[2], // location
-            $vendor[3], // contact_phone
-            $vendor[4], // approved
-            $status      // status
-        ]);
-    } else {
-        // Fallback without status column
-        $stmt = $pdo->prepare("INSERT INTO vendors (user_id, business_name, location, contact_phone, approved, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())");
-        $stmt->execute([
-            $vendor[0], // user_id
-            $vendor[1], // business_name
-            $vendor[2], // location
-            $vendor[3], // contact_phone
-            $vendor[4]  // approved
-        ]);
-    }
+    $stmt = $pdo->prepare("INSERT INTO vendors (user_id, business_name, location, contact_phone, approved, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())");
+    $stmt->execute($vendor);
     $vendorIds[] = $pdo->lastInsertId();
     echo "✓ Vendor created: {$vendor[1]}\n";
 }
 
-// Seed Categories
+// Seed Vendor Verifications
+foreach ($vendorIds as $vendorId) {
+    $stmt = $pdo->prepare("INSERT INTO vendor_verifications (vendor_id, license_number, license_document_path, verification_status, created_at) VALUES (?, ?, ?, ?, NOW())");
+    $stmt->execute([
+        $vendorId,
+        'LIC' . str_pad($vendorId, 6, '0', STR_PAD_LEFT),
+        '/documents/license_' . $vendorId . '.pdf',
+        'approved'
+    ]);
+    echo "✓ Vendor verification created for vendor ID: $vendorId\n";
+}
+
+// Seed Shelters
+$shelters = [
+    [$userIds[5], 'Hope Shelter', 'Nairobi CBD', '0700444555', 50, '/documents/hope_certificate.pdf', true, 'active'],
+    [$userIds[6], 'Grace Home', 'Westlands', '0700666777', 30, '/documents/grace_certificate.pdf', true, 'active']
+];
+
+$shelterIds = [];
+foreach ($shelters as $shelter) {
+    $stmt = $pdo->prepare("INSERT INTO shelters (user_id, shelter_name, location, contact_phone, capacity, verification_document_path, verified, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+    $stmt->execute($shelter);
+    $shelterIds[] = $pdo->lastInsertId();
+    echo "✓ Shelter created: {$shelter[1]}\n";
+}
+
+// Seed Categories - FIXED: removed updated_at
 $categories = [
     ['Pizza', 'Various pizza types'],
     ['Burgers', 'Beef, chicken and veggie burgers'],
@@ -105,7 +97,7 @@ $categories = [
 
 $categoryIds = [];
 foreach ($categories as $category) {
-    $stmt = $pdo->prepare("INSERT INTO categories (name, description, created_at, updated_at) VALUES (?, ?, NOW(), NOW())");
+    $stmt = $pdo->prepare("INSERT INTO categories (name, description, created_at) VALUES (?, ?, NOW())"); // REMOVED updated_at
     $stmt->execute($category);
     $categoryIds[] = $pdo->lastInsertId();
     echo "✓ Category created: {$category[0]}\n";
@@ -134,9 +126,5 @@ echo "- Admin: admin@saveeat.com / admin123\n";
 echo "- Vendor: vendor1@saveeat.com / vendor123\n";
 echo "- Consumer: consumer@saveeat.com / consumer123\n";
 echo "- Suspended Vendor: suspended@saveeat.com / vendor123\n";
-
-// If status column was missing, inform the user
-if (!$hasStatusColumn) {
-    echo "\n⚠️  Note: Vendors table is missing the 'status' column.\n";
-    echo "   Please run the migration again to add it: php scripts/migrate.php\n";
-}
+echo "- Hope Shelter: hope@shelter.com / shelter123\n";
+echo "- Grace Home: grace@shelter.com / shelter123\n";

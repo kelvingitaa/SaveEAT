@@ -35,11 +35,12 @@ try {
 }
 
 $migrations = [
+    // Your existing tables...
     "CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
-        role ENUM('admin','vendor','consumer') NOT NULL,
+        role ENUM('admin','vendor','consumer','shelter','driver') NOT NULL,  
         name VARCHAR(255) NOT NULL,
         phone VARCHAR(20),
         address TEXT,
@@ -63,9 +64,24 @@ $migrations = [
         location VARCHAR(255) NOT NULL,
         contact_phone VARCHAR(20) NOT NULL,
         approved BOOLEAN DEFAULT FALSE,
+        status ENUM('active','suspended','pending') DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )",
+
+    // NEW: Vendor Verification System
+    "CREATE TABLE IF NOT EXISTS vendor_verifications (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        vendor_id INT NOT NULL,
+        license_number VARCHAR(255),
+        license_document_path VARCHAR(500),
+        verified_by_admin_id INT,
+        verification_status ENUM('pending','approved','rejected') DEFAULT 'pending',
+        verified_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE,
+        FOREIGN KEY (verified_by_admin_id) REFERENCES users(id) ON DELETE SET NULL
     )",
 
     "CREATE TABLE IF NOT EXISTS food_items (
@@ -84,6 +100,22 @@ $migrations = [
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE,
         FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+    )",
+
+    // NEW: Shelter Management
+    "CREATE TABLE IF NOT EXISTS shelters (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        shelter_name VARCHAR(255) NOT NULL,
+        location VARCHAR(255) NOT NULL,
+        contact_phone VARCHAR(20) NOT NULL,
+        capacity INT,
+        verification_document_path VARCHAR(500),
+        verified BOOLEAN DEFAULT FALSE,
+        status ENUM('active','suspended','pending') DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )",
 
     "CREATE TABLE IF NOT EXISTS orders (
@@ -105,6 +137,62 @@ $migrations = [
         discount_percent INT DEFAULT 0,
         FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
         FOREIGN KEY (food_item_id) REFERENCES food_items(id) ON DELETE CASCADE
+    )",
+
+    // NEW: Payment System
+    "CREATE TABLE IF NOT EXISTS payments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        order_id INT NOT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        payment_method ENUM('mobile_money','card','cash') DEFAULT 'mobile_money',
+        transaction_id VARCHAR(255),
+        payment_status ENUM('pending','completed','failed','refunded') DEFAULT 'pending',
+        paid_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+    )",
+
+    // NEW: Delivery System
+    "CREATE TABLE IF NOT EXISTS delivery_drivers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        vehicle_type VARCHAR(100),
+        license_plate VARCHAR(50),
+        status ENUM('available','busy','offline') DEFAULT 'offline',
+        current_location VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )",
+
+    "CREATE TABLE IF NOT EXISTS deliveries (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        order_id INT NOT NULL,
+        driver_id INT,
+        pickup_time TIMESTAMP NULL,
+        delivery_time TIMESTAMP NULL,
+        status ENUM('pending','assigned','picked_up','in_transit','delivered','cancelled') DEFAULT 'pending',
+        delivery_address TEXT,
+        customer_phone VARCHAR(20),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+        FOREIGN KEY (driver_id) REFERENCES delivery_drivers(id) ON DELETE SET NULL
+    )",
+
+    // NEW: Food Donations
+    "CREATE TABLE IF NOT EXISTS donations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        vendor_id INT NOT NULL,
+        shelter_id INT NOT NULL,
+        food_item_id INT NOT NULL,
+        quantity INT NOT NULL,
+        donation_date DATE NOT NULL,
+        status ENUM('pending','scheduled','completed','cancelled') DEFAULT 'pending',
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE,
+        FOREIGN KEY (shelter_id) REFERENCES shelters(id) ON DELETE CASCADE,
+        FOREIGN KEY (food_item_id) REFERENCES food_items(id) ON DELETE CASCADE
     )"
 ];
 
@@ -117,27 +205,6 @@ foreach ($migrations as $i => $sql) {
     } catch (Exception $e) {
         echo "✗ Migration " . ($i + 1) . " failed: " . $e->getMessage() . "\n";
     }
-}
-
-
-echo "Checking for missing columns...\n";
-try {
-    $result = DB::pdo()->query("SHOW COLUMNS FROM vendors LIKE 'status'");
-    if ($result->rowCount() === 0) {
-        echo "Adding status column to vendors table...\n";
-        DB::pdo()->exec("ALTER TABLE vendors ADD COLUMN status ENUM('active','suspended','pending') DEFAULT 'pending' AFTER approved");
-        echo "✓ Status column added successfully\n";
-        
-        // Update existing vendor statuses based on approved field
-        echo "Updating existing vendor statuses...\n";
-        DB::pdo()->exec("UPDATE vendors SET status = 'active' WHERE approved = 1");
-        DB::pdo()->exec("UPDATE vendors SET status = 'pending' WHERE approved = 0");
-        echo "✓ Vendor statuses updated successfully\n";
-    } else {
-        echo "✓ Status column already exists\n";
-    }
-} catch (Exception $e) {
-    echo "✗ Failed to check/add status column: " . $e->getMessage() . "\n";
 }
 
 echo "Migrations completed!\n";

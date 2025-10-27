@@ -48,3 +48,43 @@ $router->get('/admin/categories', [AdminController::class, 'categories']);
 $router->post('/admin/categories', [AdminController::class, 'categoryStore']);
 $router->post('/admin/categories/update', [AdminController::class, 'categoryUpdate']);
 $router->post('/admin/categories/delete', [AdminController::class, 'categoryDelete']);
+
+
+// Shelter Routes
+$router->get('/shelter/register', [ShelterController::class, 'register']);
+$router->post('/shelter/register', [ShelterController::class, 'store']);
+$router->get('/shelter/dashboard', [ShelterController::class, 'dashboard']);
+
+// Admin verification routes
+$router->get('/admin/shelters', [AdminController::class, 'shelters']);
+$router->post('/admin/shelters/approve', [AdminController::class, 'approveShelter']);
+$router->get('/admin/verifications', [AdminController::class, 'vendorVerifications']);
+$router->post('/admin/verifications/approve', [AdminController::class, 'approveVendorVerification']);
+$router->post('/admin/verifications/reject', [AdminController::class, 'rejectVendorVerification']);
+
+
+// Payment Routes
+$router->get('/payment/process/{id}', [PaymentController::class, 'process']);
+$router->post('/payment/initiate', [PaymentController::class, 'initiate']);
+$router->get('/payment/success/{id}', [PaymentController::class, 'success']);
+$router->get('/payment/failed/{id}', [PaymentController::class, 'failed']);
+
+// Delivery Routes
+$router->get('/delivery/dashboard', [DeliveryController::class, 'dashboard']);
+$router->post('/delivery/update-status', [DeliveryController::class, 'updateStatus']);
+$router->post('/delivery/assign', [DeliveryController::class, 'assignDelivery']);
+$router->post('/delivery/update-delivery-status', [DeliveryController::class, 'updateDeliveryStatus']);
+$router->get('/delivery/track/{id}', [DeliveryController::class, 'track']);
+
+// Verification Routes
+$router->get('/verification/upload-license', [VerificationController::class, 'uploadLicense']);
+$router->post('/verification/process-license', [VerificationController::class, 'processLicense']);
+$router->get('/verification/status', [VerificationController::class, 'status']);
+
+// Reports Route
+$router->get('/admin/reports', [AdminController::class, 'reports']);
+
+// Cron job route (for manual triggering during development)
+$router->get('/cron/update-food-status', function() {
+    require __DIR__ . '/../scripts/update_food_status.php';
+});

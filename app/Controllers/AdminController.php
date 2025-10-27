@@ -860,4 +860,250 @@ class AdminController extends Controller
         
         $this->redirect('/admin/categories');
     }
+
+    public function shelters(): void
+{
+    Auth::requireRole(['admin']);
+    $shelterModel = new Shelter();
+    
+    try {
+        $pendingShelters = $shelterModel->getPendingVerifications();
+        $activeShelters = $shelterModel->getActiveShelters();
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to load shelters.');
+        $pendingShelters = [];
+        $activeShelters = [];
+    }
+    
+    $this->view('admin/shelters', [
+        'pendingShelters' => $pendingShelters,
+        'activeShelters' => $activeShelters
+    ]);
+}
+
+public function approveShelter(): void
+{
+    Auth::requireRole(['admin']);
+    
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        Session::flash('error', 'Method not allowed');
+        $this->redirect('/admin/shelters');
+    }
+    
+    $token = $_POST['_csrf'] ?? null;
+    if (!$token || !CSRF::check($token)) {
+        http_response_code(419);
+        Session::flash('error', 'Invalid CSRF token');
+        $this->redirect('/admin/shelters');
+    }
+    
+    $shelterId = (int)($_POST['shelter_id'] ?? 0);
+    
+    if ($shelterId <= 0) {
+        Session::flash('error', 'Invalid shelter specified');
+        $this->redirect('/admin/shelters');
+    }
+    
+    try {
+        $shelterModel = new Shelter();
+        $success = $shelterModel->approve($shelterId, Auth::userId());
+        
+        if ($success) {
+            Session::flash('success', 'Shelter approved successfully');
+        } else {
+            Session::flash('error', 'Failed to approve shelter');
+        }
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to approve shelter: ' . $e->getMessage());
+    }
+    
+    $this->redirect('/admin/shelters');
+}
+
+public function vendorVerifications(): void
+{
+    Auth::requireRole(['admin']);
+    $verificationModel = new VendorVerification();
+    
+    try {
+        $pendingVerifications = $verificationModel->getPendingVerifications();
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to load vendor verifications.');
+        $pendingVerifications = [];
+    }
+    
+    $this->view('admin/vendor-verifications', [
+        'verifications' => $pendingVerifications
+    ]);
+}
+
+public function approveVendorVerification(): void
+{
+    Auth::requireRole(['admin']);
+    
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        Session::flash('error', 'Method not allowed');
+        $this->redirect('/admin/verifications');
+    }
+    
+    $token = $_POST['_csrf'] ?? null;
+    if (!$token || !CSRF::check($token)) {
+        http_response_code(419);
+        Session::flash('error', 'Invalid CSRF token');
+        $this->redirect('/admin/verifications');
+    }
+    
+    $verificationId = (int)($_POST['verification_id'] ?? 0);
+    
+    if ($verificationId <= 0) {
+        Session::flash('error', 'Invalid verification specified');
+        $this->redirect('/admin/verifications');
+    }
+    
+    try {
+        $verificationModel = new VendorVerification();
+        $success = $verificationModel->approve($verificationId, Auth::userId());
+        
+        if ($success) {
+            Session::flash('success', 'Vendor verification approved successfully');
+        } else {
+            Session::flash('error', 'Failed to approve vendor verification');
+        }
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to approve verification: ' . $e->getMessage());
+    }
+    
+    $this->redirect('/admin/verifications');
+}
+
+public function rejectVendorVerification(): void
+{
+    Auth::requireRole(['admin']);
+    
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        Session::flash('error', 'Method not allowed');
+        $this->redirect('/admin/verifications');
+    }
+    
+    $token = $_POST['_csrf'] ?? null;
+    if (!$token || !CSRF::check($token)) {
+        http_response_code(419);
+        Session::flash('error', 'Invalid CSRF token');
+        $this->redirect('/admin/verifications');
+    }
+    
+    $verificationId = (int)($_POST['verification_id'] ?? 0);
+    
+    if ($verificationId <= 0) {
+        Session::flash('error', 'Invalid verification specified');
+        $this->redirect('/admin/verifications');
+    }
+    
+    try {
+        $verificationModel = new VendorVerification();
+        $success = $verificationModel->reject($verificationId, Auth::userId());
+        
+        if ($success) {
+            Session::flash('success', 'Vendor verification rejected');
+        } else {
+            Session::flash('error', 'Failed to reject vendor verification');
+        }
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to reject verification: ' . $e->getMessage());
+    }
+    
+    $this->redirect('/admin/verifications');
+}
+public function reports(): void
+{
+    Auth::requireRole(['admin']);
+    
+    $db = (new User())->getDb();
+    
+    try {
+        // Food Saved Report
+        $foodSavedStmt = $db->prepare("
+            SELECT 
+                COUNT(*) as total_items_saved,
+                SUM(fi.price * oi.quantity) as total_value_saved,
+                AVG(fi.price * oi.quantity) as avg_value_per_item,
+                COUNT(DISTINCT fi.vendor_id) as vendors_contributing
+            FROM order_items oi
+            LEFT JOIN food_items fi ON oi.food_item_id = fi.id
+            WHERE fi.expiry_date >= CURDATE()
+        ");
+        $foodSavedStmt->execute();
+        $foodSaved = $foodSavedStmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Donations Report
+        $donationsStmt = $db->prepare("
+            SELECT 
+                COUNT(*) as total_donations,
+                SUM(quantity) as items_donated,
+                COUNT(DISTINCT vendor_id) as donating_vendors,
+                COUNT(DISTINCT shelter_id) as supported_shelters
+            FROM donations 
+            WHERE status IN ('completed', 'scheduled')
+            AND donation_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        ");
+        $donationsStmt->execute();
+        $donations = $donationsStmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Vendor Income Report
+        $incomeStmt = $db->prepare("
+            SELECT 
+                v.business_name,
+                COUNT(o.id) as orders_completed,
+                SUM(o.total_price) as total_income,
+                AVG(o.total_price) as avg_order_value
+            FROM orders o
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            LEFT JOIN food_items fi ON oi.food_item_id = fi.id
+            LEFT JOIN vendors v ON fi.vendor_id = v.id
+            WHERE o.status IN ('completed', 'paid')
+            AND o.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            GROUP BY v.id, v.business_name
+            ORDER BY total_income DESC
+            LIMIT 10
+        ");
+        $incomeStmt->execute();
+        $vendorIncome = $incomeStmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Monthly Trends
+        $monthlyStmt = $db->prepare("
+            SELECT 
+                DATE_FORMAT(o.created_at, '%Y-%m') as month,
+                COUNT(o.id) as order_count,
+                SUM(o.total_price) as revenue,
+                COUNT(DISTINCT d.id) as donation_count
+            FROM orders o
+            LEFT JOIN donations d ON DATE_FORMAT(d.created_at, '%Y-%m') = DATE_FORMAT(o.created_at, '%Y-%m')
+            WHERE o.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+            GROUP BY DATE_FORMAT(o.created_at, '%Y-%m')
+            ORDER BY month DESC
+        ");
+        $monthlyStmt->execute();
+        $monthlyTrends = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (\Throwable $e) {
+        Session::flash('error', 'Failed to generate reports: ' . $e->getMessage());
+        $foodSaved = $donations = [];
+        $vendorIncome = $monthlyTrends = [];
+    }
+    
+    $this->view('admin/reports', [
+        'foodSaved' => $foodSaved,
+        'donations' => $donations,
+        'vendorIncome' => $vendorIncome,
+        'monthlyTrends' => $monthlyTrends
+    ]);
+}
 }
