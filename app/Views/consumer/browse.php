@@ -1,4 +1,3 @@
-
 <?php
 use App\Core\CSRF;
 $token = CSRF::token();
@@ -31,7 +30,7 @@ ob_start();
       <div class="col-lg-3 col-md-4 col-sm-6">
         <div class="card h-100 shadow border-0">
           <?php if (!empty($it['image_path'])): ?>
-            <img src="<?= BASE_URL . '/' . $it['image_path'] ?>" class="card-img-top" alt="<?= htmlspecialchars($it['name']) ?>" style="height:180px;object-fit:cover;">
+            <img src="<?= $it['image_path'] ?>" class="card-img-top" alt="<?= htmlspecialchars($it['name']) ?>" style="height:180px;object-fit:cover;">
           <?php else: ?>
             <div class="card-img-top d-flex align-items-center justify-content-center bg-secondary text-white" style="height:180px;">
               <span>No Image</span>
@@ -40,7 +39,12 @@ ob_start();
           <div class="card-body d-flex flex-column">
             <h5 class="card-title text-primary mb-1"><?= htmlspecialchars($it['name']) ?></h5>
             <p class="card-text small mb-1">Category: <span class="badge bg-secondary"><?= htmlspecialchars($it['category_name'] ?? '') ?></span></p>
-            <p class="card-text mb-2">Price: <strong class="text-success">$<?= number_format($it['price'] * (1 - ($it['discount_percent'] ?? 0)/100), 2) ?></strong></p>
+            <p class="card-text mb-2">
+              <strong class="text-success">KSh <?= number_format($it['price'] * (1 - ($it['discount_percent'] ?? 0)/100), 0) ?></strong>
+              <?php if ($it['discount_percent'] > 0): ?>
+                <br><small class="text-danger"><s>KSh <?= number_format($it['price'], 0) ?></s> (<?= $it['discount_percent'] ?>% off)</small>
+              <?php endif; ?>
+            </p>
             <form method="post" action="<?= BASE_URL ?>/consumer/cart/add" class="mt-auto">
               <input type="hidden" name="_csrf" value="<?= $token ?>">
               <input type="hidden" name="id" value="<?= (int)$it['id'] ?>">

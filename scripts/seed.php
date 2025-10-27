@@ -79,18 +79,19 @@ foreach ($categories as $category) {
     echo "✓ Category created: {$category[0]}\n";
 }
 
-// Seed Food Items
+// Seed Food Items with REALISTIC Kenyan prices and images
 $foodItems = [
-    [$vendorIds[0], $categoryIds[0], 'Margherita Pizza', 'Classic cheese and tomato pizza', 12.99, 10, date('Y-m-d', strtotime('+7 days')), 20, 'active'],
-    [$vendorIds[0], $categoryIds[0], 'Pepperoni Pizza', 'Pepperoni and cheese pizza', 14.99, 15, date('Y-m-d', strtotime('+5 days')), 15, 'active'],
-    [$vendorIds[1], $categoryIds[1], 'Beef Burger', 'Juicy beef burger with fries', 8.99, 5, date('Y-m-d', strtotime('+3 days')), 25, 'active'],
-    [$vendorIds[1], $categoryIds[1], 'Chicken Burger', 'Crispy chicken burger', 7.99, 0, date('Y-m-d', strtotime('+4 days')), 18, 'active'],
-    [$vendorIds[0], $categoryIds[2], 'Cola', '500ml bottle', 2.99, 0, date('Y-m-d', strtotime('+30 days')), 50, 'active'],
-    [$vendorIds[1], $categoryIds[3], 'Chocolate Cake', 'Rich chocolate cake slice', 4.99, 20, date('Y-m-d', strtotime('+2 days')), 10, 'active']
+    // Format: [vendor_id, category_id, name, description, price, discount_percent, expiry_date, stock, image_path, status]
+    [$vendorIds[0], $categoryIds[0], 'Margherita Pizza', 'Classic cheese and tomato pizza', 1200, 20, date('Y-m-d', strtotime('+7 days')), 20, 'https://tse2.mm.bing.net/th/id/OIP.PY5zQl0PhEtHkwXxfS-lNQHaHa?rs=1&pid=ImgDetMain&o=7&rm=3', 'active'],
+    [$vendorIds[0], $categoryIds[0], 'Pepperoni Pizza', 'Pepperoni and cheese pizza', 1350, 15, date('Y-m-d', strtotime('+5 days')), 15, 'https://th.bing.com/th/id/OIP.6xgy-h0Gwc7s9oRf0J3rkAHaJ1?o=7rm=3&rs=1&pid=ImgDetMain&o=7&rm=3', 'active'],
+    [$vendorIds[1], $categoryIds[1], 'Beef Burger', 'Juicy beef burger with fries', 650, 10, date('Y-m-d', strtotime('+3 days')), 25, 'https://tse3.mm.bing.net/th/id/OIP.RVuQtEcNiscLNfRjkhT0wwHaHa?rs=1&pid=ImgDetMain&o=7&rm=3', 'active'],
+    [$vendorIds[1], $categoryIds[1], 'Chicken Burger', 'Crispy chicken burger with fries', 580, 10, date('Y-m-d', strtotime('+4 days')), 18, 'https://tse4.mm.bing.net/th/id/OIP.m93SV6ox1swkqRaBnEzbHgHaHa?rs=1&pid=ImgDetMain&o=7&rm=3', 'active'],
+    [$vendorIds[0], $categoryIds[2], 'Cola', '500ml bottle', 180, 10, date('Y-m-d', strtotime('+30 days')), 50, 'https://tse2.mm.bing.net/th/id/OIP.PUvKv1v0P9wqOa8oQVYqFAHaE8?rs=1&pid=ImgDetMain&o=7&rm=3', 'active'],
+    [$vendorIds[1], $categoryIds[3], 'Chocolate Cake', 'Rich chocolate cake slice', 450, 20, date('Y-m-d', strtotime('+2 days')), 10, 'https://charlotteslivelykitchen.com/wp-content/uploads/2019/01/chocolate-cake-1.jpg', 'active']
 ];
 
 foreach ($foodItems as $item) {
-    $stmt = $pdo->prepare("INSERT INTO food_items (vendor_id, category_id, name, description, price, discount_percent, expiry_date, stock, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+    $stmt = $pdo->prepare("INSERT INTO food_items (vendor_id, category_id, name, description, price, discount_percent, expiry_date, stock, image_path, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
     $stmt->execute($item);
     echo "✓ Food item created: {$item[2]}\n";
 }
