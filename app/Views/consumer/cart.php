@@ -14,12 +14,12 @@ ob_start();
       <tr>
         <td><?= htmlspecialchars($it['name']) ?></td>
         <td><?= (int)$it['qty'] ?></td>
-        <td>$<?= number_format($it['line_total'], 2) ?></td>
+        <td>KSh <?= number_format($it['line_total'], 0) ?></td>
       </tr>
     <?php endforeach; ?>
   </tbody>
 </table>
-<p class="text-end"><strong>Total: $<?= number_format($total, 2) ?></strong></p>
+<p class="text-end"><strong>Total: KSh <?= number_format($total, 0) ?></strong></p>
 <form method="post" action="<?= BASE_URL ?>/consumer/checkout">
   <input type="hidden" name="_csrf" value="<?= $token ?>">
   <button class="btn btn-success">Checkout (Simulated)</button>

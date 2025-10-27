@@ -8,7 +8,7 @@ ob_start();
   <?php foreach ($orders as $o): ?>
     <tr>
       <td><?= (int)$o['id'] ?></td>
-      <td>$<?= number_format($o['total_price'], 2) ?></td>
+      <td>KSh <?= number_format($o['total_price'] ?? 0, 0) ?></td>
       <td><?= htmlspecialchars($o['status']) ?></td>
       <td><?= htmlspecialchars($o['created_at']) ?></td>
     </tr>
