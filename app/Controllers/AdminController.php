@@ -15,8 +15,9 @@ class AdminController extends Controller
 {
     public function index(): void
     {
-    $userModel = new User();
-    $db = $userModel->getDb();
+        Auth::requireRole(['admin']);
+        $userModel = new User();
+        $db = $userModel->getDb();
         $userCount = (int)$db->query("SELECT COUNT(*) FROM users")->fetchColumn();
         $vendorCount = (int)$db->query("SELECT COUNT(*) FROM vendors")->fetchColumn();
         $consumerCount = (int)$db->query("SELECT COUNT(*) FROM users WHERE role='consumer'")->fetchColumn();
@@ -25,7 +26,7 @@ class AdminController extends Controller
         $foodInactive = (int)$db->query("SELECT COUNT(*) FROM food_items WHERE status='inactive'")->fetchColumn();
         $foodExpired = (int)$db->query("SELECT COUNT(*) FROM food_items WHERE status='expired'")->fetchColumn();
         $orderCount = (int)$db->query("SELECT COUNT(*) FROM orders")->fetchColumn();
-        $revenue = (float)$db->query("SELECT SUM(total_price) FROM orders WHERE status IN ('paid','completed')")->fetchColumn() ?: 0.0;
+        $revenue = (float)$db->query("SELECT SUM(total_amount) FROM orders WHERE status IN ('paid','completed')")->fetchColumn() ?: 0.0;
         $topItems = $db->query("SELECT fi.name, COUNT(oi.id) as sold FROM order_items oi JOIN food_items fi ON fi.id = oi.food_item_id GROUP BY fi.id ORDER BY sold DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
         $expiringItems = $db->query("SELECT name, expiry_date FROM food_items WHERE expiry_date <= DATE_ADD(CURDATE(), INTERVAL 3 DAY) AND status='active'")->fetchAll(PDO::FETCH_ASSOC);
         $suspendedVendors = $db->query("SELECT business_name FROM vendors WHERE approved=0")->fetchAll(PDO::FETCH_ASSOC);
@@ -55,20 +56,63 @@ class AdminController extends Controller
         $page = max(1, (int)($_GET['page'] ?? 1));
         $perPage = 20;
         $offset = ($page - 1) * $perPage;
+        
+        // Get filter parameters
+        $role = $_GET['role'] ?? '';
+        $status = $_GET['status'] ?? '';
+        $search = $_GET['q'] ?? '';
+        
         try {
-            $total = (int)$db->query('SELECT COUNT(*) FROM users')->fetchColumn();
-                // Removed role restriction for direct access
-                $stmt = $db->prepare('SELECT * FROM users ORDER BY created_at DESC LIMIT :limit OFFSET :offset');
+            // Build WHERE conditions
+            $whereConditions = [];
+            $params = [];
+            
+            if (!empty($role)) {
+                $whereConditions[] = 'role = :role';
+                $params['role'] = $role;
+            }
+            
+            if (!empty($status)) {
+                $whereConditions[] = 'status = :status';
+                $params['status'] = $status;
+            }
+            
+            if (!empty($search)) {
+                $whereConditions[] = '(name LIKE :search OR email LIKE :search)';
+                $params['search'] = '%' . $search . '%';
+            }
+            
+            // Build SQL queries
+            $whereClause = $whereConditions ? 'WHERE ' . implode(' AND ', $whereConditions) : '';
+            
+            // Count total with filters
+            $countSql = "SELECT COUNT(*) FROM users $whereClause";
+            $stmt = $db->prepare($countSql);
+            $stmt->execute($params);
+            $total = (int)$stmt->fetchColumn();
+            
+            // Get users with filters
+            $sql = "SELECT * FROM users $whereClause ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+            $stmt = $db->prepare($sql);
+            
+            // Bind filter parameters
+            foreach ($params as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            
+            // Bind pagination parameters
             $stmt->bindValue('limit', $perPage, \PDO::PARAM_INT);
             $stmt->bindValue('offset', $offset, \PDO::PARAM_INT);
             $stmt->execute();
             $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            
         } catch (\Throwable $e) {
             http_response_code(500);
             Session::flash('error', 'Failed to load users.');
             $rows = [];
             $total = 0;
         }
+        
         $this->view('admin/users', [
             'users' => $rows,
             'page' => $page,
@@ -105,33 +149,67 @@ class AdminController extends Controller
         $this->redirect('/admin/vendors');
     }
 
-        public function vendors(): void
-        {
-            // Removed role restriction for direct access
-            $m = new Vendor();
-            $db = $m->getDb();
-            $page = max(1, (int)($_GET['page'] ?? 1));
-            $perPage = 20;
-            $offset = ($page - 1) * $perPage;
-            try {
-                $total = (int)$db->query('SELECT COUNT(*) FROM vendors')->fetchColumn();
-                $stmt = $db->prepare('SELECT * FROM vendors ORDER BY created_at DESC LIMIT :limit OFFSET :offset');
-                $stmt->bindValue('limit', $perPage, \PDO::PARAM_INT);
-                $stmt->bindValue('offset', $offset, \PDO::PARAM_INT);
-                $stmt->execute();
-                $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-            } catch (\Throwable $e) {
-                http_response_code(500);
-                Session::flash('error', 'Failed to load vendors.');
-                $rows = [];
-                $total = 0;
+    public function vendors(): void
+    {
+        Auth::requireRole(['admin']);
+        $m = new Vendor();
+        $db = $m->getDb();
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $perPage = 20;
+        $offset = ($page - 1) * $perPage;
+        
+        // Get filter parameters
+        $approved = $_GET['approved'] ?? '';
+        $search = $_GET['q'] ?? '';
+        
+        try {
+            // Build WHERE conditions
+            $whereConditions = [];
+            $params = [];
+            
+            if ($approved !== '') {
+                $whereConditions[] = 'approved = :approved';
+                $params['approved'] = (bool)$approved;
             }
-            $this->view('admin/vendors', [
-                'vendors' => $rows,
-                'page' => $page,
-                'pages' => (int)ceil(($total ?: 1)/$perPage)
-            ]);
+            
+            if (!empty($search)) {
+                $whereConditions[] = '(business_name LIKE :search OR location LIKE :search)';
+                $params['search'] = '%' . $search . '%';
+            }
+            
+            // Build SQL queries
+            $whereClause = $whereConditions ? 'WHERE ' . implode(' AND ', $whereConditions) : '';
+            
+            $countSql = "SELECT COUNT(*) FROM vendors $whereClause";
+            $stmt = $db->prepare($countSql);
+            $stmt->execute($params);
+            $total = (int)$stmt->fetchColumn();
+            
+            $sql = "SELECT * FROM vendors $whereClause ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+            $stmt = $db->prepare($sql);
+            
+            foreach ($params as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            
+            $stmt->bindValue('limit', $perPage, \PDO::PARAM_INT);
+            $stmt->bindValue('offset', $offset, \PDO::PARAM_INT);
+            $stmt->execute();
+            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            Session::flash('error', 'Failed to load vendors.');
+            $rows = [];
+            $total = 0;
         }
+        
+        $this->view('admin/vendors', [
+            'vendors' => $rows,
+            'page' => $page,
+            'pages' => (int)ceil(($total ?: 1)/$perPage)
+        ]);
+    }
 
     public function categories(): void
     {
