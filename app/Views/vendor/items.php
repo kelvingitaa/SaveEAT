@@ -24,6 +24,11 @@ ob_start();
         <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2"><i class="bi bi-basket"></i> My Food Items</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <a href="<?= BASE_URL ?>/vendor" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
             </div>
 
             <?php if ($success): ?>
@@ -46,7 +51,7 @@ ob_start();
                     <h5 class="card-title mb-0"><i class="bi bi-plus-circle"></i> Add New Food Item</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" enctype="multipart/form-data" action="<?= BASE_URL ?>/vendor/items">
+                    <form method="post" enctype="multipart/form-data" action="<?= BASE_URL ?>/vendor/items/store">
                         <input type="hidden" name="_csrf" value="<?= $token ?>">
                         
                         <div class="row g-3">
@@ -113,6 +118,9 @@ ob_start();
                                 <button type="submit" class="btn btn-success btn-lg">
                                     <i class="bi bi-plus-circle"></i> Add Food Item
                                 </button>
+                                <a href="<?= BASE_URL ?>/vendor/items" class="btn btn-outline-secondary ms-2">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </a>
                             </div>
                         </div>
                     </form>
@@ -130,7 +138,6 @@ ob_start();
                             <thead class="table-light">
                                 <tr>
                                     <th>ID</th>
-                                    <th>Image</th>
                                     <th>Name</th>
                                     <th>Category</th>
                                     <th>Price</th>
@@ -138,23 +145,13 @@ ob_start();
                                     <th>Stock</th>
                                     <th>Expiry</th>
                                     <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                             <?php foreach ($items as $it): ?>
                                 <tr>
                                     <td><?= (int)$it['id'] ?></td>
-                                    <td>
-                                        <?php if ($it['image_path']): ?>
-                                            <img src="<?= BASE_URL . $it['image_path'] ?>" alt="<?= htmlspecialchars($it['name']) ?>" 
-                                                 style="width: 50px; height: 50px; object-fit: cover;" class="rounded">
-                                        <?php else: ?>
-                                            <div class="bg-light rounded d-flex align-items-center justify-content-center" 
-                                                 style="width: 50px; height: 50px;">
-                                                <i class="bi bi-image text-muted"></i>
-                                            </div>
-                                        <?php endif; ?>
-                                    </td>
                                     <td>
                                         <strong><?= htmlspecialchars($it['name']) ?></strong>
                                         <?php if ($it['description']): ?>
@@ -212,6 +209,23 @@ ob_start();
                                             <?= ucfirst($it['status']) ?>
                                         </span>
                                     </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#editItemModal<?= $it['id'] ?>">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <form method="post" action="<?= BASE_URL ?>/vendor/items/delete" class="d-inline">
+                                                <input type="hidden" name="_csrf" value="<?= $token ?>">
+                                                <input type="hidden" name="item_id" value="<?= $it['id'] ?>">
+                                                <button type="submit" class="btn btn-outline-danger" 
+                                                        onclick="return confirm('Are you sure you want to delete this item?')">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                             <?php if (empty($items)): ?>
@@ -232,9 +246,6 @@ ob_start();
 </div>
 
 <style>
-.table img {
-    border-radius: 4px;
-}
 .badge {
     font-size: 0.75rem;
 }

@@ -161,17 +161,18 @@ $migrations = [
     )",
 
     // Delivery System
-    "CREATE TABLE IF NOT EXISTS delivery_drivers (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        vehicle_type VARCHAR(100),
-        license_plate VARCHAR(50),
-        status ENUM('available','busy','offline') DEFAULT 'offline',
-        current_location VARCHAR(255),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    )",
 
+"CREATE TABLE IF NOT EXISTS delivery_drivers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    vehicle_type VARCHAR(100),
+    license_plate VARCHAR(50),
+    license_file VARCHAR(500),
+    status ENUM('pending','available','busy','offline') DEFAULT 'pending', 
+    current_location VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+)",
     // Deliveries table
     "CREATE TABLE IF NOT EXISTS deliveries (
         id INT AUTO_INCREMENT PRIMARY KEY,

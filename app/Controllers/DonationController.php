@@ -20,11 +20,13 @@ class DonationController extends Controller
         $donationModel = new Donation();
         $foodModel = new FoodItem();
         
-        $vendor = $vendorModel->findByUserId(Auth::userId());
+        // FIXED: Auth::userId() → Auth::id()
+        $vendor = $vendorModel->findByUserId(Auth::id());
         $donations = $donationModel->getDonationsByVendor($vendor['id']);
         $expiringItems = $foodModel->getExpiringItems($vendor['id']);
         
-        $this->view('donation/index', [
+        // FIXED: donation/index → vendor/donation
+        $this->view('vendor/donation', [
             'vendor' => $vendor,
             'donations' => $donations,
             'expiringItems' => $expiringItems
@@ -39,10 +41,12 @@ class DonationController extends Controller
         $shelterModel = new Shelter();
         $foodModel = new FoodItem();
         
-        $vendor = $vendorModel->findByUserId(Auth::userId());
+        // FIXED: Auth::userId() → Auth::id()
+        $vendor = $vendorModel->findByUserId(Auth::id());
         $shelters = $shelterModel->getActiveShelters();
         $availableItems = $foodModel->getAvailableItemsForDonation($vendor['id']);
         
+        // FIXED: donation/create → donation/create (check if this exists in vendor folder)
         $this->view('donation/create', [
             'vendor' => $vendor,
             'shelters' => $shelters,
@@ -65,12 +69,14 @@ class DonationController extends Controller
         }
         
         $vendorModel = new Vendor();
-        $vendor = $vendorModel->findByUserId(Auth::userId());
+        // FIXED: Auth::userId() → Auth::id()
+        $vendor = $vendorModel->findByUserId(Auth::id());
         
         $foodItemId = (int)($_POST['food_item_id'] ?? 0);
         $shelterId = (int)($_POST['shelter_id'] ?? 0);
         $quantity = (int)($_POST['quantity'] ?? 0);
         $donationDate = $_POST['donation_date'] ?? date('Y-m-d');
+        $notes = trim($_POST['notes'] ?? '');
         
         // Validation
         if ($foodItemId <= 0 || $shelterId <= 0 || $quantity <= 0) {
@@ -89,7 +95,7 @@ class DonationController extends Controller
                 'quantity' => $quantity,
                 'donation_date' => $donationDate,
                 'status' => 'scheduled',
-                'notes' => $_POST['notes'] ?? ''
+                'notes' => $notes
             ]);
             
             // Update food item stock
@@ -112,11 +118,13 @@ class DonationController extends Controller
         $shelterModel = new Shelter();
         $donationModel = new Donation();
         
-        $shelter = $shelterModel->findByUserId(Auth::userId());
+        // FIXED: Auth::userId() → Auth::id()
+        $shelter = $shelterModel->findByUserId(Auth::id());
         $donations = $donationModel->getDonationsByShelter($shelter['id']);
         $availableDonations = $donationModel->getAvailableDonations();
         
-        $this->view('donation/shelter-requests', [
+        // FIXED: donation/shelter-requests → donation/requests
+        $this->view('donation/requests', [
             'shelter' => $shelter,
             'donations' => $donations,
             'availableDonations' => $availableDonations

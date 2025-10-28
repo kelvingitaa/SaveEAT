@@ -34,7 +34,7 @@ class DeliveryDriver extends BaseModel
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function create(int $userId, array $data): int
+public function create(int $userId, array $data): int
 {
     $stmt = $this->db->prepare('INSERT INTO delivery_drivers (user_id, vehicle_type, license_plate, license_file, status, created_at) VALUES (?, ?, ?, ?, ?, NOW())');
     $stmt->execute([
@@ -42,7 +42,7 @@ class DeliveryDriver extends BaseModel
         $data['vehicle_type'] ?? '',
         $data['license_plate'] ?? '',
         $data['license_file'] ?? null,
-        'pending' // Drivers start as pending
+        'offline'
     ]);
     return (int)$this->db->lastInsertId();
 }

@@ -361,81 +361,85 @@ class AdminController extends Controller
         $this->redirect('/admin/users');
     }
 
-    public function createVendor(): void
-    {
-        Auth::requireRole(['admin']);
-        
-        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-            http_response_code(405);
-            Session::flash('error', 'Method not allowed');
-            $this->redirect('/admin/vendors');
-        }
-        
-        $token = $_POST['_csrf'] ?? null;
-        if (!$token || !CSRF::check($token)) {
-            http_response_code(419);
-            Session::flash('error', 'Invalid CSRF token');
-            $this->redirect('/admin/vendors');
-        }
-        
-        $businessName = trim((string)($_POST['business_name'] ?? ''));
-        $location = trim((string)($_POST['location'] ?? ''));
-        $contactPhone = trim((string)($_POST['contact_phone'] ?? ''));
-        $userId = (int)($_POST['user_id'] ?? 0);
-        
-        // Validation
-        if (empty($businessName) || empty($location) || empty($contactPhone) || $userId <= 0) {
-            Session::flash('error', 'All fields are required');
-            $this->redirect('/admin/vendors');
-        }
-        
-        try {
-            $vendorModel = new Vendor();
-            $db = $vendorModel->getDb();
-            
-            // Check if user exists and is a vendor
-            $userStmt = $db->prepare('SELECT id, role FROM users WHERE id = :user_id');
-            $userStmt->execute(['user_id' => $userId]);
-            $user = $userStmt->fetch();
-            
-            if (!$user) {
-                Session::flash('error', 'User not found');
-                $this->redirect('/admin/vendors');
-            }
-            
-            if ($user['role'] !== 'vendor') {
-                Session::flash('error', 'User must have vendor role');
-                $this->redirect('/admin/vendors');
-            }
-            
-            // Check if vendor already exists for this user
-            $vendorStmt = $db->prepare('SELECT id FROM vendors WHERE user_id = :user_id');
-            $vendorStmt->execute(['user_id' => $userId]);
-            if ($vendorStmt->fetchColumn()) {
-                Session::flash('error', 'Vendor already exists for this user');
-                $this->redirect('/admin/vendors');
-            }
-            
-            // Create vendor - auto-approve when created by admin
-            $stmt = $db->prepare('INSERT INTO vendors (user_id, business_name, location, contact_phone, approved, status, created_at, updated_at) VALUES (:user_id, :business_name, :location, :contact_phone, :approved, :status, NOW(), NOW())');
-            $stmt->execute([
-                'user_id' => $userId,
-                'business_name' => $businessName,
-                'location' => $location,
-                'contact_phone' => $contactPhone,
-                'approved' => 1,
-                'status' => 'active'
-            ]);
-            
-            Session::flash('success', 'Vendor created successfully');
-            
-        } catch (\Throwable $e) {
-            http_response_code(500);
-            Session::flash('error', 'Failed to create vendor: ' . $e->getMessage());
-        }
-        
+public function createVendor(): void
+{
+    Auth::requireRole(['admin']);
+    
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        Session::flash('error', 'Method not allowed');
         $this->redirect('/admin/vendors');
     }
+    
+    $token = $_POST['_csrf'] ?? null;
+    if (!$token || !CSRF::check($token)) {
+        http_response_code(419);
+        Session::flash('error', 'Invalid CSRF token');
+        $this->redirect('/admin/vendors');
+    }
+    
+    $businessName = trim((string)($_POST['business_name'] ?? ''));
+    $location = trim((string)($_POST['location'] ?? ''));
+    $contactPhone = trim((string)($_POST['contact_phone'] ?? ''));
+    $userId = (int)($_POST['user_id'] ?? 0);
+    
+    // Validation
+    if (empty($businessName) || empty($location) || empty($contactPhone) || $userId <= 0) {
+        Session::flash('error', 'All fields are required');
+        $this->redirect('/admin/vendors');
+    }
+    
+    try {
+        $vendorModel = new Vendor();
+        $db = $vendorModel->getDb();
+        
+        // Check if user exists and is a vendor
+        $userStmt = $db->prepare('SELECT id, role FROM users WHERE id = :user_id');
+        $userStmt->execute(['user_id' => $userId]);
+        $user = $userStmt->fetch();
+        
+        if (!$user) {
+            Session::flash('error', 'User not found');
+            $this->redirect('/admin/vendors');
+        }
+        
+        if ($user['role'] !== 'vendor') {
+            Session::flash('error', 'User must have vendor role');
+            $this->redirect('/admin/vendors');
+        }
+        
+        // Check if vendor already exists for this user
+        $vendorStmt = $db->prepare('SELECT id FROM vendors WHERE user_id = :user_id');
+        $vendorStmt->execute(['user_id' => $userId]);
+        if ($vendorStmt->fetchColumn()) {
+            Session::flash('error', 'Vendor already exists for this user');
+            $this->redirect('/admin/vendors');
+        }
+        
+        // Create vendor - auto-approve when created by admin
+        $stmt = $db->prepare('INSERT INTO vendors (user_id, business_name, location, contact_phone, approved, status, created_at, updated_at) VALUES (:user_id, :business_name, :location, :contact_phone, :approved, :status, NOW(), NOW())');
+        $stmt->execute([
+            'user_id' => $userId,
+            'business_name' => $businessName,
+            'location' => $location,
+            'contact_phone' => $contactPhone,
+            'approved' => 1,
+            'status' => 'active'
+        ]);
+        
+        // ALSO update the user status to active
+        $stmt = $db->prepare('UPDATE users SET status = "active", updated_at = NOW() WHERE id = :user_id');
+        $stmt->execute(['user_id' => $userId]);
+        
+        Session::flash('success', 'Vendor created successfully');
+        
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to create vendor: ' . $e->getMessage());
+    }
+    
+    $this->redirect('/admin/vendors');
+}
 
     public function updateVendor(): void
     {
@@ -593,40 +597,56 @@ class AdminController extends Controller
         $this->redirect('/admin/vendors');
     }
 
-    public function approveVendor(): void
-    {
-        Auth::requireRole(['admin']);
-        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-            http_response_code(405);
-            Session::flash('error', 'Method not allowed');
-            $this->redirect('/admin/vendors');
-        }
-        $token = $_POST['_csrf'] ?? null;
-        if (!$token || !CSRF::check($token)) {
-            http_response_code(419);
-            Session::flash('error', 'Invalid CSRF token');
-            $this->redirect('/admin/vendors');
-        }
-        $vendorId = filter_input(INPUT_POST, 'vendor_id', FILTER_VALIDATE_INT) ?: 0;
-        if ($vendorId <= 0) {
-            Session::flash('error', 'Invalid vendor specified');
-            $this->redirect('/admin/vendors');
-        }
-        try {
-            $vendorModel = new Vendor();
-            $db = $vendorModel->getDb();
-            
-            // Update both approved and status
-            $stmt = $db->prepare('UPDATE vendors SET approved = 1, status = "active", updated_at = NOW() WHERE id = :id');
-            $stmt->execute(['id' => $vendorId]);
-            
-            Session::flash('success', 'Vendor approved successfully');
-        } catch (\Throwable $e) {
-            http_response_code(500);
-            Session::flash('error', 'Failed to approve vendor');
-        }
+   public function approveVendor(): void
+{
+    Auth::requireRole(['admin']);
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        Session::flash('error', 'Method not allowed');
         $this->redirect('/admin/vendors');
     }
+    $token = $_POST['_csrf'] ?? null;
+    if (!$token || !CSRF::check($token)) {
+        http_response_code(419);
+        Session::flash('error', 'Invalid CSRF token');
+        $this->redirect('/admin/vendors');
+    }
+    $vendorId = filter_input(INPUT_POST, 'vendor_id', FILTER_VALIDATE_INT) ?: 0;
+    if ($vendorId <= 0) {
+        Session::flash('error', 'Invalid vendor specified');
+        $this->redirect('/admin/vendors');
+    }
+    try {
+        $vendorModel = new Vendor();
+        $db = $vendorModel->getDb();
+        
+        // Get the user_id for this vendor first
+        $stmt = $db->prepare('SELECT user_id FROM vendors WHERE id = :id');
+        $stmt->execute(['id' => $vendorId]);
+        $vendor = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$vendor) {
+            Session::flash('error', 'Vendor not found');
+            $this->redirect('/admin/vendors');
+        }
+        
+        $userId = $vendor['user_id'];
+        
+        // Update both vendors table AND users table
+        $stmt = $db->prepare('UPDATE vendors SET approved = 1, status = "active", updated_at = NOW() WHERE id = :id');
+        $stmt->execute(['id' => $vendorId]);
+        
+        // ALSO update the user status to active
+        $stmt = $db->prepare('UPDATE users SET status = "active", updated_at = NOW() WHERE id = :user_id');
+        $stmt->execute(['user_id' => $userId]);
+        
+        Session::flash('success', 'Vendor approved successfully');
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to approve vendor: ' . $e->getMessage());
+    }
+    $this->redirect('/admin/vendors');
+}
 
     public function vendors(): void
     {

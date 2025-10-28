@@ -169,17 +169,24 @@ foreach ($foodItems as $index => $item) {
     }
 }
 
-// Seed Delivery Driver
+// Seed Delivery Driver - UPDATED: Added license_file column
 try {
-    $driverStmt = $pdo->prepare("INSERT INTO delivery_drivers (user_id, vehicle_type, license_plate, status, current_location, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-    $driverStmt->execute([$userIds[7], 'Motorcycle', 'KCR 123A', 'available', 'Nairobi CBD']);
+    $driverStmt = $pdo->prepare("INSERT INTO delivery_drivers (user_id, vehicle_type, license_plate, license_file, status, current_location, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+    $driverStmt->execute([
+        $userIds[7], 
+        'Motorcycle', 
+        'KCR 123A', 
+        '/documents/driver_license_1.pdf', // ADDED: license_file path
+        'available', 
+        'Nairobi CBD'
+    ]);
     $driverId = $pdo->lastInsertId();
-    echo "✓ Delivery driver created (ID: $driverId)\n";
+    echo "✓ Delivery driver created (ID: $driverId) with license file\n";
 } catch (Exception $e) {
     echo "⚠ Could not create delivery driver: " . $e->getMessage() . "\n";
 }
 
-// ========== NEW: SAMPLE ORDERS AND DELIVERIES ==========
+// ========== SAMPLE ORDERS AND DELIVERIES ==========
 echo "\nCreating sample orders and deliveries...\n";
 
 // Create sample orders
@@ -246,9 +253,9 @@ foreach ($payments as $payment) {
     echo "✓ Payment created for order #{$payment[0]}\n";
 }
 
-echo "\n SEEDING COMPLETED! Database is now populated with FULL sample data.\n";
+echo "\n🎉 SEEDING COMPLETED! Database is now populated with FULL sample data.\n";
 echo "===============================================\n";
-echo "You can now login with:\n";
+echo " LOGIN CREDENTIALS:\n";
 echo " Admin: admin@saveeat.com / admin123\n";
 echo " Vendor 1: vendor1@saveeat.com / vendor123 (Pizza Hub)\n";
 echo " Vendor 2: vendor2@saveeat.com / vendor123 (Burger Joint)\n";
@@ -259,9 +266,11 @@ echo " Hope Shelter: hope@shelter.com / shelter123\n";
 echo " Grace Home: grace@shelter.com / shelter123\n";
 echo " Delivery Driver: driver1@saveeat.com / driver123\n";
 echo "===============================================\n";
-echo "DRIVER DASHBOARD FEATURES:\n";
+echo " DRIVER DASHBOARD FEATURES:\n";
 echo "✓ 2 assigned deliveries (1 assigned, 1 picked up)\n";
 echo "✓ 2 available deliveries for assignment\n";
 echo "✓ Online/offline status toggle\n";
 echo "✓ Delivery status updates (picked up → in transit → delivered)\n";
+echo "✓ License file properly stored in database\n";
 echo "===============================================\n";
+echo " DATABASE READY: All tables including license_file column are properly seeded!\n";

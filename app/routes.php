@@ -49,11 +49,12 @@ $router->post('/admin/verifications/approve', [AdminController::class, 'approveV
 $router->post('/admin/verifications/reject', [AdminController::class, 'rejectVendorVerification']);
 $router->get('/admin/reports', [AdminController::class, 'reports']);
 
-// Vendor Routes
+// Vendor Routes 
 $router->get('/vendor', [VendorController::class, 'index']);
 $router->get('/vendor/items', [VendorController::class, 'items']);
-$router->post('/vendor/items', [VendorController::class, 'itemStore']);
-
+$router->post('/vendor/items/store', [VendorController::class, 'itemStore']);
+$router->post('/vendor/items/update', [VendorController::class, 'itemUpdate']);
+$router->post('/vendor/items/delete', [VendorController::class, 'itemDelete']);
 // Consumer Routes
 $router->get('/consumer', [ConsumerController::class, 'index']);
 $router->get('/consumer/cart', [ConsumerController::class, 'cart']);
@@ -94,6 +95,14 @@ $router->post('/delivery/change-password', [DeliveryController::class, 'changePa
 $router->get('/verification/upload-license', [VerificationController::class, 'uploadLicense']);
 $router->post('/verification/process-license', [VerificationController::class, 'processLicense']);
 $router->get('/verification/status', [VerificationController::class, 'status']);
+
+// Donation Routes
+$router->get('/donations', [DonationController::class, 'index']);
+$router->get('/donations/create', [DonationController::class, 'create']);
+$router->post('/donations/store', [DonationController::class, 'store']);
+$router->get('/donations/shelter-requests', [DonationController::class, 'shelterRequests']);
+$router->post('/donations/update-status', [DonationController::class, 'updateStatus']);
+$router->get('/admin/donations', [DonationController::class, 'adminIndex']);
 
 // Cron job route
 $router->get('/cron/update-food-status', function() {
