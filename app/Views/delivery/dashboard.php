@@ -13,9 +13,21 @@ ob_start();
         <nav class="col-md-2 d-none d-md-block bg-light sidebar py-4">
             <div class="sidebar-sticky">
                 <ul class="nav flex-column">
-                    <li class="nav-item mb-2"><a class="nav-link active fw-bold" href="#"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-                    <li class="nav-item mb-2"><a class="nav-link" href="#"><i class="bi bi-clock-history"></i> Delivery History</a></li>
-                    <li class="nav-item mb-2"><a class="nav-link" href="#"><i class="bi bi-gear"></i> Settings</a></li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link active fw-bold" href="<?= BASE_URL ?>/delivery/dashboard">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link" href="<?= BASE_URL ?>/delivery/history">
+                            <i class="bi bi-clock-history"></i> Delivery History
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link" href="<?= BASE_URL ?>/delivery/settings">
+                            <i class="bi bi-gear"></i> Settings
+                        </a>
+                    </li>
                 </ul>
             </div>
         </nav>

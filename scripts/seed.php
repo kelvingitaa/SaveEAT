@@ -49,14 +49,21 @@ $users = [
     ['John Consumer', 'consumer@saveeat.com', 'consumer123', 'consumer', 'active'],
     ['Hope Shelter Manager', 'hope@shelter.com', 'shelter123', 'shelter', 'active'],
     ['Grace Home Manager', 'grace@shelter.com', 'shelter123', 'shelter', 'active'],
-    ['Delivery Driver 1', 'driver1@saveeat.com', 'driver123', 'driver', 'active']
+    ['Delivery Driver 1', 'driver1@saveeat.com', 'driver123', 'driver', 'active'],
+    ['Mary Consumer', 'mary@consumer.com', 'consumer123', 'consumer', 'active'] // Added for orders
 ];
 
 $userIds = [];
 foreach ($users as $user) {
-    $stmt = $pdo->prepare("INSERT INTO users (name, email, password_hash, role, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())");
+    $stmt = $pdo->prepare("INSERT INTO users (name, email, password_hash, role, status, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
     $stmt->execute([
-        $user[0], $user[1], password_hash($user[2], PASSWORD_DEFAULT), $user[3], $user[4]
+        $user[0], 
+        $user[1], 
+        password_hash($user[2], PASSWORD_DEFAULT), 
+        $user[3], 
+        $user[4],
+        '0712345678', // Default phone
+        '123 Main Street, Nairobi' // Default address
     ]);
     $userIds[] = $pdo->lastInsertId();
     echo "✓ User created: {$user[1]} (ID: {$userIds[count($userIds)-1]})\n";
@@ -121,8 +128,7 @@ foreach ($categories as $category) {
     echo "✓ Category created: {$category[0]} (ID: {$categoryIds[count($categoryIds)-1]})\n";
 }
 
-// Seed Food Items with REALISTIC Kenyan prices, images and storage instructions
-// Seed Food Items with REALISTIC Kenyan prices and YOUR image links
+// Seed Food Items with REALISTIC Kenyan prices and images
 $foodItems = [
     // Format: [vendor_id, category_id, name, description, storage_instructions, price, discount_percent, expiry_date, stock, image_path, status]
     
@@ -167,20 +173,95 @@ foreach ($foodItems as $index => $item) {
 try {
     $driverStmt = $pdo->prepare("INSERT INTO delivery_drivers (user_id, vehicle_type, license_plate, status, current_location, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
     $driverStmt->execute([$userIds[7], 'Motorcycle', 'KCR 123A', 'available', 'Nairobi CBD']);
-    echo "✓ Delivery driver created\n";
+    $driverId = $pdo->lastInsertId();
+    echo "✓ Delivery driver created (ID: $driverId)\n";
 } catch (Exception $e) {
     echo "⚠ Could not create delivery driver: " . $e->getMessage() . "\n";
 }
 
-echo "\n🎉 Seeding completed! Database is now populated with sample data.\n";
+// ========== NEW: SAMPLE ORDERS AND DELIVERIES ==========
+echo "\nCreating sample orders and deliveries...\n";
+
+// Create sample orders
+$orders = [
+    [$userIds[8], 2450.00, 'paid'], // Mary Consumer
+    [$userIds[8], 1800.00, 'paid'],
+    [$userIds[8], 3200.00, 'paid'],
+    [$userIds[4], 1500.00, 'paid']  // John Consumer
+];
+
+$orderIds = [];
+foreach ($orders as $order) {
+    $orderStmt = $pdo->prepare("INSERT INTO orders (user_id, total_price, status, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())");
+    $orderStmt->execute($order);
+    $orderIds[] = $pdo->lastInsertId();
+    echo "✓ Sample order created: #{$pdo->lastInsertId()}\n";
+}
+
+// Create sample order items
+$orderItems = [
+    [$orderIds[0], 1, 2, 1200, 20, 1920], // 2x Margherita Pizza
+    [$orderIds[0], 4, 1, 180, 10, 162],   // 1x Cola
+    [$orderIds[1], 6, 2, 650, 10, 1170],  // 2x Beef Burger Combo
+    [$orderIds[1], 9, 1, 450, 20, 360],   // 1x Chocolate Cake
+    [$orderIds[2], 3, 1, 1450, 25, 1087.50], // 1x BBQ Chicken Pizza
+    [$orderIds[2], 12, 2, 350, 25, 525],  // 2x Chips Masala
+    [$orderIds[3], 7, 1, 580, 15, 493]    // 1x Chicken Burger Combo
+];
+
+foreach ($orderItems as $item) {
+    $itemStmt = $pdo->prepare("INSERT INTO order_items (order_id, food_item_id, quantity, unit_price, discount_percent, line_total) VALUES (?, ?, ?, ?, ?, ?)");
+    $itemStmt->execute($item);
+    echo "✓ Order item created for order #{$item[0]}\n";
+}
+
+// Create sample deliveries
+$deliveries = [
+    // Assigned to driver
+    [$orderIds[0], $driverId, 'assigned', '123 Main Street, Westlands, Nairobi', '0712345678', 'Please call upon arrival'],
+    // Available for assignment (no driver)
+    [$orderIds[1], null, 'pending', '456 Kimathi Street, CBD, Nairobi', '0723456789', 'Gate 5, Apartment 12'],
+    [$orderIds[2], null, 'pending', '789 Moi Avenue, Nairobi', '0734567890', 'Office building, 3rd floor'],
+    // Another assigned delivery
+    [$orderIds[3], $driverId, 'picked_up', '321 Koinange Street, Nairobi', '0745678901', 'Leave with security']
+];
+
+foreach ($deliveries as $delivery) {
+    $deliveryStmt = $pdo->prepare("INSERT INTO deliveries (order_id, driver_id, status, delivery_address, customer_phone, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+    $deliveryStmt->execute($delivery);
+    echo "✓ Delivery created for order #{$delivery[0]} (Status: {$delivery[2]})\n";
+}
+
+// Create sample payments
+$payments = [
+    [$orderIds[0], 2082.00, 'mobile_money', 'MPESA_001', 'completed', date('Y-m-d H:i:s')],
+    [$orderIds[1], 1530.00, 'mobile_money', 'MPESA_002', 'completed', date('Y-m-d H:i:s')],
+    [$orderIds[2], 1612.50, 'mobile_money', 'MPESA_003', 'completed', date('Y-m-d H:i:s')],
+    [$orderIds[3], 493.00, 'mobile_money', 'MPESA_004', 'completed', date('Y-m-d H:i:s')]
+];
+
+foreach ($payments as $payment) {
+    $paymentStmt = $pdo->prepare("INSERT INTO payments (order_id, amount, payment_method, transaction_id, payment_status, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+    $paymentStmt->execute($payment);
+    echo "✓ Payment created for order #{$payment[0]}\n";
+}
+
+echo "\n SEEDING COMPLETED! Database is now populated with FULL sample data.\n";
 echo "===============================================\n";
 echo "You can now login with:\n";
 echo " Admin: admin@saveeat.com / admin123\n";
 echo " Vendor 1: vendor1@saveeat.com / vendor123 (Pizza Hub)\n";
 echo " Vendor 2: vendor2@saveeat.com / vendor123 (Burger Joint)\n";
 echo " Consumer: consumer@saveeat.com / consumer123\n";
+echo " Mary Consumer: mary@consumer.com / consumer123 (Has orders)\n";
 echo " Suspended Vendor: suspended@saveeat.com / vendor123\n";
 echo " Hope Shelter: hope@shelter.com / shelter123\n";
 echo " Grace Home: grace@shelter.com / shelter123\n";
 echo " Delivery Driver: driver1@saveeat.com / driver123\n";
+echo "===============================================\n";
+echo "DRIVER DASHBOARD FEATURES:\n";
+echo "✓ 2 assigned deliveries (1 assigned, 1 picked up)\n";
+echo "✓ 2 available deliveries for assignment\n";
+echo "✓ Online/offline status toggle\n";
+echo "✓ Delivery status updates (picked up → in transit → delivered)\n";
 echo "===============================================\n";

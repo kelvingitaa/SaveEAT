@@ -79,11 +79,17 @@ $router->post('/delivery/update-status', [DeliveryController::class, 'updateStat
 $router->post('/delivery/assign', [DeliveryController::class, 'assignDelivery']);
 $router->post('/delivery/update-delivery-status', [DeliveryController::class, 'updateDeliveryStatus']);
 $router->get('/delivery/track/{id}', [DeliveryController::class, 'track']);
+$router->get('/delivery/history', [DeliveryController::class, 'history']);
+$router->get('/delivery/settings', [DeliveryController::class, 'settings']);
+$router->post('/delivery/update-profile', [DeliveryController::class, 'updateProfile']);
+$router->post('/delivery/change-password', [DeliveryController::class, 'changePassword']);
 
 // Verification Routes
 $router->get('/verification/upload-license', [VerificationController::class, 'uploadLicense']);
 $router->post('/verification/process-license', [VerificationController::class, 'processLicense']);
 $router->get('/verification/status', [VerificationController::class, 'status']);
+
+
 
 // Cron job route
 $router->get('/cron/update-food-status', function() {

@@ -51,6 +51,36 @@ class Delivery extends BaseModel
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function getCompletedDeliveriesByDriver(int $driverId): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT d.*, o.total_price, u.name as customer_name, u.phone as customer_phone,
+                   u.address as delivery_address
+            FROM deliveries d
+            LEFT JOIN orders o ON d.order_id = o.id
+            LEFT JOIN users u ON o.user_id = u.id
+            WHERE d.driver_id = :driver_id AND d.status = 'delivered'
+            ORDER BY d.delivery_time DESC
+        ");
+        $stmt->execute(['driver_id' => $driverId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getAllDeliveriesByDriver(int $driverId): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT d.*, o.total_price, u.name as customer_name, u.phone as customer_phone,
+                   u.address as delivery_address
+            FROM deliveries d
+            LEFT JOIN orders o ON d.order_id = o.id
+            LEFT JOIN users u ON o.user_id = u.id
+            WHERE d.driver_id = :driver_id
+            ORDER BY d.created_at DESC
+        ");
+        $stmt->execute(['driver_id' => $driverId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getAvailableDeliveries(): array
     {
         $stmt = $this->db->prepare("
