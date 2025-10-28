@@ -42,6 +42,8 @@ $router->get('/consumer/cart', [ConsumerController::class, 'cart']);
 $router->post('/consumer/cart/add', [ConsumerController::class, 'cartAdd']);
 $router->post('/consumer/checkout', [ConsumerController::class, 'checkout']);
 $router->get('/consumer/orders', [ConsumerController::class, 'orders']);
+$router->post('/consumer/cart/update', [ConsumerController::class, 'cartUpdate']);
+$router->post('/consumer/cart/remove', [ConsumerController::class, 'cartRemove']);
 
 // Categories
 $router->get('/admin/categories', [AdminController::class, 'categories']);

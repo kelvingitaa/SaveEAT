@@ -134,7 +134,7 @@ $migrations = [
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )",
 
-    // Order Items table
+    // Order Items table - UPDATED: Added line_total
     "CREATE TABLE IF NOT EXISTS order_items (
         id INT AUTO_INCREMENT PRIMARY KEY,
         order_id INT NOT NULL,
@@ -142,6 +142,7 @@ $migrations = [
         quantity INT NOT NULL,
         unit_price DECIMAL(10,2) NOT NULL,
         discount_percent INT DEFAULT 0,
+        line_total DECIMAL(10,2) NOT NULL, 
         FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
         FOREIGN KEY (food_item_id) REFERENCES food_items(id) ON DELETE CASCADE
     )",
@@ -227,7 +228,21 @@ try {
         echo "✓ storage_instructions column already exists\n";
     }
 } catch (Exception $e) {
-    echo " Could not add storage_instructions column: " . $e->getMessage() . "\n";
+    echo "⚠ Could not add storage_instructions column: " . $e->getMessage() . "\n";
+}
+
+// Add line_total column to order_items if it doesn't exist (backup method)
+try {
+    $checkSql = "SHOW COLUMNS FROM order_items LIKE 'line_total'";
+    $result = DB::pdo()->query($checkSql);
+    if ($result->rowCount() === 0) {
+        DB::pdo()->exec("ALTER TABLE order_items ADD COLUMN line_total DECIMAL(10,2) AFTER discount_percent");
+        echo "✓ Added line_total column to order_items table\n";
+    } else {
+        echo "✓ line_total column already exists\n";
+    }
+} catch (Exception $e) {
+    echo "⚠ Could not add line_total column: " . $e->getMessage() . "\n";
 }
 
 echo "Migrations completed!\n";

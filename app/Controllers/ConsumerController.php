@@ -3,16 +3,17 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Core\Auth;
+use App\Core\CSRF;
+use App\Core\Session; // ADD THIS IMPORT
 use App\Models\FoodItem;
 use App\Models\Category;
 use App\Models\Order;
-use App\Core\CSRF;
 
 class ConsumerController extends Controller
 {
     public function index(): void
     {
-    // Removed role restriction for public landing page
+        // Removed role restriction for public landing page
         $filters = [
             'category_id' => $_GET['category_id'] ?? null,
             'q' => $_GET['q'] ?? null,
@@ -25,12 +26,17 @@ class ConsumerController extends Controller
     public function cartAdd(): void
     {
         Auth::requireRole(['consumer']);
-        if (!CSRF::check($_POST['_csrf'] ?? '')) { echo 'Invalid CSRF'; return; }
+        if (!CSRF::check($_POST['_csrf'] ?? '')) { 
+            Session::flash('error', 'Invalid CSRF token'); // ADD SESSION FLASH
+            $this->redirect('/consumer/cart');
+            return; 
+        }
         $id = (int)($_POST['id'] ?? 0);
         $qty = max(1, (int)($_POST['qty'] ?? 1));
         $cart = $_SESSION['cart'] ?? [];
         $cart[$id] = ($cart[$id] ?? 0) + $qty;
         $_SESSION['cart'] = $cart;
+        Session::flash('success', 'Item added to cart'); // ADD SUCCESS MESSAGE
         $this->redirect('/consumer/cart');
     }
 
@@ -55,12 +61,63 @@ class ConsumerController extends Controller
         $this->view('consumer/cart', ['items' => $items, 'total' => $total]);
     }
 
+    public function cartUpdate(): void
+    {
+        Auth::requireRole(['consumer']);
+        if (!CSRF::check($_POST['_csrf'] ?? '')) { 
+            Session::flash('error', 'Invalid CSRF token'); 
+            $this->redirect('/consumer/cart');
+            return;
+        }
+        
+        $id = (int)($_POST['id'] ?? 0);
+        $qty = max(1, min(10, (int)($_POST['qty'] ?? 1))); // Limit to 10 max
+        
+        $cart = $_SESSION['cart'] ?? [];
+        if (isset($cart[$id])) {
+            $cart[$id] = $qty;
+            $_SESSION['cart'] = $cart;
+            Session::flash('success', 'Cart updated successfully');
+        }
+        
+        $this->redirect('/consumer/cart');
+    }
+
+    public function cartRemove(): void
+    {
+        Auth::requireRole(['consumer']);
+        if (!CSRF::check($_POST['_csrf'] ?? '')) { 
+            Session::flash('error', 'Invalid CSRF token'); 
+            $this->redirect('/consumer/cart');
+            return;
+        }
+        
+        $id = (int)($_POST['id'] ?? 0);
+        
+        $cart = $_SESSION['cart'] ?? [];
+        if (isset($cart[$id])) {
+            unset($cart[$id]);
+            $_SESSION['cart'] = $cart;
+            Session::flash('success', 'Item removed from cart');
+        }
+        
+        $this->redirect('/consumer/cart');
+    }
+
     public function checkout(): void
     {
         Auth::requireRole(['consumer']);
-        if (!CSRF::check($_POST['_csrf'] ?? '')) { echo 'Invalid CSRF'; return; }
+        if (!CSRF::check($_POST['_csrf'] ?? '')) { 
+            Session::flash('error', 'Invalid CSRF token');
+            $this->redirect('/consumer/cart');
+            return; 
+        }
         $cart = $_SESSION['cart'] ?? [];
-        if (!$cart) { $this->redirect('/consumer'); return; }
+        if (!$cart) { 
+            Session::flash('error', 'Your cart is empty');
+            $this->redirect('/consumer'); 
+            return; 
+        }
         $items = [];
         $total = 0.0;
         $fm = new FoodItem();
@@ -77,6 +134,7 @@ class ConsumerController extends Controller
         }
         $orderId = (new Order())->createOrder((int)\App\Core\Auth::id(), $items, $total);
         unset($_SESSION['cart']);
+        Session::flash('success', 'Order placed successfully!'); // ADD SUCCESS MESSAGE
         $this->view('consumer/checkout_success', ['order_id' => $orderId, 'total' => $total]);
     }
 
@@ -86,4 +144,27 @@ class ConsumerController extends Controller
         $orders = (new Order())->byUser((int)Auth::id());
         $this->view('consumer/orders', ['orders' => $orders]);
     }
+
+    public function orderDetails($orderId): void
+{
+    Auth::requireRole(['consumer']);
+    
+    // Get order details
+    $order = (new Order())->find((int)$orderId);
+    
+    // Verify the order belongs to the current user
+    if (!$order || $order['user_id'] != Auth::id()) {
+        Session::flash('error', 'Order not found');
+        $this->redirect('/consumer/orders');
+        return;
+    }
+    
+    // Get order items 
+    $orderItems = (new Order())->getOrderItems((int)$orderId);
+    
+    $this->view('consumer/order-details', [
+        'order' => $order,
+        'orderItems' => $orderItems
+    ]);
+}
 }
