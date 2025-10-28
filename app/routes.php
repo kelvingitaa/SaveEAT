@@ -4,18 +4,31 @@ use App\Controllers\AuthController;
 use App\Controllers\AdminController;
 use App\Controllers\VendorController;
 use App\Controllers\ConsumerController;
+use App\Controllers\ShelterController;
+use App\Controllers\PaymentController;
+use App\Controllers\DeliveryController;
+use App\Controllers\VerificationController;
 
 /* @var $router Router */
+
+// Home
 $router->get('/', [ConsumerController::class, 'index']);
 
-// Auth
+// Auth Routes - UPDATED
 $router->get('/login', [AuthController::class, 'showLogin']);
 $router->post('/login', [AuthController::class, 'login']);
-$router->get('/register', [AuthController::class, 'showRegister']);
-$router->post('/register', [AuthController::class, 'register']);
+$router->get('/register', [AuthController::class, 'showRegisterSelect']);
+$router->get('/register/consumer', [AuthController::class, 'showConsumerRegistration']);
+$router->post('/register/consumer', [AuthController::class, 'registerConsumer']);
+$router->get('/register/vendor', [AuthController::class, 'showVendorRegistration']);
+$router->post('/register/vendor', [AuthController::class, 'registerVendor']);
+$router->get('/register/shelter', [AuthController::class, 'showShelterRegistration']);
+$router->post('/register/shelter', [AuthController::class, 'registerShelter']);
+$router->get('/register/driver', [AuthController::class, 'showDriverRegistration']);
+$router->post('/register/driver', [AuthController::class, 'registerDriver']);
 $router->get('/logout', [AuthController::class, 'logout']);
 
-// Admin
+// Admin Routes
 $router->get('/admin', [AdminController::class, 'index']);
 $router->get('/admin/users', [AdminController::class, 'users']);
 $router->post('/admin/users/create', [AdminController::class, 'createUser']);
@@ -26,17 +39,21 @@ $router->get('/admin/vendors', [AdminController::class, 'vendors']);
 $router->post('/admin/vendors/approve', [AdminController::class, 'approveVendor']);
 $router->get('/admin/categories', [AdminController::class, 'categories']);
 $router->post('/admin/categories', [AdminController::class, 'categoryStore']);
+$router->post('/admin/categories/update', [AdminController::class, 'categoryUpdate']);
+$router->post('/admin/categories/delete', [AdminController::class, 'categoryDelete']);
+$router->get('/admin/shelters', [AdminController::class, 'shelters']);
+$router->post('/admin/shelters/approve', [AdminController::class, 'approveShelter']);
+$router->get('/admin/verifications', [AdminController::class, 'vendorVerifications']);
+$router->post('/admin/verifications/approve', [AdminController::class, 'approveVendorVerification']);
+$router->post('/admin/verifications/reject', [AdminController::class, 'rejectVendorVerification']);
+$router->get('/admin/reports', [AdminController::class, 'reports']);
 
-// Vendor
+// Vendor Routes
 $router->get('/vendor', [VendorController::class, 'index']);
 $router->get('/vendor/items', [VendorController::class, 'items']);
 $router->post('/vendor/items', [VendorController::class, 'itemStore']);
-$router->post('/admin/vendors/create', [AdminController::class, 'createVendor']);
-$router->post('/admin/vendors/update', [AdminController::class, 'updateVendor']);
-$router->post('/admin/vendors/toggle-status', [AdminController::class, 'toggleVendorStatus']);
-$router->post('/admin/vendors/delete', [AdminController::class, 'deleteVendor']);
 
-// Consumer
+// Consumer Routes
 $router->get('/consumer', [ConsumerController::class, 'index']);
 $router->get('/consumer/cart', [ConsumerController::class, 'cart']);
 $router->post('/consumer/cart/add', [ConsumerController::class, 'cartAdd']);
@@ -45,25 +62,10 @@ $router->get('/consumer/orders', [ConsumerController::class, 'orders']);
 $router->post('/consumer/cart/update', [ConsumerController::class, 'cartUpdate']);
 $router->post('/consumer/cart/remove', [ConsumerController::class, 'cartRemove']);
 
-// Categories
-$router->get('/admin/categories', [AdminController::class, 'categories']);
-$router->post('/admin/categories', [AdminController::class, 'categoryStore']);
-$router->post('/admin/categories/update', [AdminController::class, 'categoryUpdate']);
-$router->post('/admin/categories/delete', [AdminController::class, 'categoryDelete']);
-
-
 // Shelter Routes
 $router->get('/shelter/register', [ShelterController::class, 'register']);
 $router->post('/shelter/register', [ShelterController::class, 'store']);
 $router->get('/shelter/dashboard', [ShelterController::class, 'dashboard']);
-
-// Admin verification routes
-$router->get('/admin/shelters', [AdminController::class, 'shelters']);
-$router->post('/admin/shelters/approve', [AdminController::class, 'approveShelter']);
-$router->get('/admin/verifications', [AdminController::class, 'vendorVerifications']);
-$router->post('/admin/verifications/approve', [AdminController::class, 'approveVendorVerification']);
-$router->post('/admin/verifications/reject', [AdminController::class, 'rejectVendorVerification']);
-
 
 // Payment Routes
 $router->get('/payment/process/{id}', [PaymentController::class, 'process']);
@@ -83,10 +85,7 @@ $router->get('/verification/upload-license', [VerificationController::class, 'up
 $router->post('/verification/process-license', [VerificationController::class, 'processLicense']);
 $router->get('/verification/status', [VerificationController::class, 'status']);
 
-// Reports Route
-$router->get('/admin/reports', [AdminController::class, 'reports']);
-
-// Cron job route (for manual triggering during development)
+// Cron job route
 $router->get('/cron/update-food-status', function() {
     require __DIR__ . '/../scripts/update_food_status.php';
 });

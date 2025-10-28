@@ -7,7 +7,7 @@ ob_start();
   <div class="col-md-6">
     <h3 class="mb-3">Register</h3>
     <?php if (!empty($error)): ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
-    <form method="post" action="<?= BASE_URL ?>/register">
+    <form method="post" action="<?= BASE_URL ?>/register/consumer">
       <input type="hidden" name="_csrf" value="<?= $token ?>">
       <div class="row g-3">
         <div class="col-md-6">
