@@ -8,6 +8,7 @@ use App\Controllers\ShelterController;
 use App\Controllers\PaymentController;
 use App\Controllers\DeliveryController;
 use App\Controllers\VerificationController;
+use App\Controllers\DonationController;
 
 /* @var $router Router */
 
@@ -66,6 +67,11 @@ $router->post('/consumer/cart/remove', [ConsumerController::class, 'cartRemove']
 $router->get('/shelter/register', [ShelterController::class, 'register']);
 $router->post('/shelter/register', [ShelterController::class, 'store']);
 $router->get('/shelter/dashboard', [ShelterController::class, 'dashboard']);
+$router->get('/shelter/donations', [ShelterController::class, 'donationRequests']);
+$router->get('/shelter/history', [ShelterController::class, 'donationHistory']);
+$router->get('/shelter/settings', [ShelterController::class, 'settings']);
+$router->post('/shelter/donations/request', [ShelterController::class, 'requestDonation']);
+$router->post('/shelter/settings/update', [ShelterController::class, 'updateSettings']);
 
 // Payment Routes
 $router->get('/payment/process/{id}', [PaymentController::class, 'process']);
@@ -88,8 +94,6 @@ $router->post('/delivery/change-password', [DeliveryController::class, 'changePa
 $router->get('/verification/upload-license', [VerificationController::class, 'uploadLicense']);
 $router->post('/verification/process-license', [VerificationController::class, 'processLicense']);
 $router->get('/verification/status', [VerificationController::class, 'status']);
-
-
 
 // Cron job route
 $router->get('/cron/update-food-status', function() {

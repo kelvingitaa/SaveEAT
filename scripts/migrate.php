@@ -231,7 +231,7 @@ try {
     echo "⚠ Could not add storage_instructions column: " . $e->getMessage() . "\n";
 }
 
-// Add line_total column to order_items if it doesn't exist (backup method)
+
 try {
     $checkSql = "SHOW COLUMNS FROM order_items LIKE 'line_total'";
     $result = DB::pdo()->query($checkSql);

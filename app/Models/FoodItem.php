@@ -119,18 +119,14 @@ class FoodItem extends BaseModel
     }
 
     public function deductStock(int $foodItemId, int $quantity): bool
-    {
-        $stmt = $this->db->prepare("
-            UPDATE food_items 
-            SET stock = stock - :quantity,
-                updated_at = NOW()
-            WHERE id = :id AND stock >= :quantity
-        ");
-        return $stmt->execute([
-            'id' => $foodItemId,
-            'quantity' => $quantity
-        ]);
-    }
+{
+    $stmt = $this->db->prepare("
+        UPDATE food_items 
+        SET stock = stock - ?, updated_at = NOW() 
+        WHERE id = ? AND stock >= ?
+    ");
+    return $stmt->execute([$quantity, $foodItemId, $quantity]);
+}
 
     public function enforce24HourRule(array $foodData): bool
     {
@@ -243,4 +239,5 @@ class FoodItem extends BaseModel
         $stmt->execute(['vendor_id' => $vendorId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+    
 }
