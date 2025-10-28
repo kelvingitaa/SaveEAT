@@ -87,7 +87,7 @@ foreach ($shelters as $shelter) {
     echo "✓ Shelter created: {$shelter[1]}\n";
 }
 
-// Seed Categories - FIXED: removed updated_at
+// Seed Categories -
 $categories = [
     ['Pizza', 'Various pizza types'],
     ['Burgers', 'Beef, chicken and veggie burgers'],
@@ -97,7 +97,7 @@ $categories = [
 
 $categoryIds = [];
 foreach ($categories as $category) {
-    $stmt = $pdo->prepare("INSERT INTO categories (name, description, created_at) VALUES (?, ?, NOW())"); // REMOVED updated_at
+    $stmt = $pdo->prepare("INSERT INTO categories (name, description, created_at, updated_at) VALUES (?, ?, NOW(), NOW())"); // ADDED updated_at
     $stmt->execute($category);
     $categoryIds[] = $pdo->lastInsertId();
     echo "✓ Category created: {$category[0]}\n";
