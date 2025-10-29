@@ -9,6 +9,7 @@ use App\Models\FoodItem;
 use App\Models\Shelter;
 use App\Models\Vendor;
 use App\Core\CSRF;
+use PDO;
 
 class DonationController extends Controller
 {
@@ -20,12 +21,10 @@ class DonationController extends Controller
         $donationModel = new Donation();
         $foodModel = new FoodItem();
         
-        // FIXED: Auth::userId() → Auth::id()
         $vendor = $vendorModel->findByUserId(Auth::id());
         $donations = $donationModel->getDonationsByVendor($vendor['id']);
         $expiringItems = $foodModel->getExpiringItems($vendor['id']);
         
-        // FIXED: donation/index → vendor/donation
         $this->view('vendor/donation', [
             'vendor' => $vendor,
             'donations' => $donations,
@@ -41,12 +40,10 @@ class DonationController extends Controller
         $shelterModel = new Shelter();
         $foodModel = new FoodItem();
         
-        // FIXED: Auth::userId() → Auth::id()
         $vendor = $vendorModel->findByUserId(Auth::id());
         $shelters = $shelterModel->getActiveShelters();
         $availableItems = $foodModel->getAvailableItemsForDonation($vendor['id']);
         
-        // FIXED: donation/create → donation/create (check if this exists in vendor folder)
         $this->view('donation/create', [
             'vendor' => $vendor,
             'shelters' => $shelters,
@@ -69,7 +66,6 @@ class DonationController extends Controller
         }
         
         $vendorModel = new Vendor();
-        // FIXED: Auth::userId() → Auth::id()
         $vendor = $vendorModel->findByUserId(Auth::id());
         
         $foodItemId = (int)($_POST['food_item_id'] ?? 0);
@@ -118,12 +114,10 @@ class DonationController extends Controller
         $shelterModel = new Shelter();
         $donationModel = new Donation();
         
-        // FIXED: Auth::userId() → Auth::id()
         $shelter = $shelterModel->findByUserId(Auth::id());
         $donations = $donationModel->getDonationsByShelter($shelter['id']);
         $availableDonations = $donationModel->getAvailableDonations();
         
-        // FIXED: donation/shelter-requests → donation/requests
         $this->view('donation/requests', [
             'shelter' => $shelter,
             'donations' => $donations,
@@ -167,14 +161,25 @@ class DonationController extends Controller
     public function adminIndex(): void
     {
         Auth::requireRole(['admin']);
-        
         $donationModel = new Donation();
-        $stats = $donationModel->getDonationStats();
-        $recentDonations = $donationModel->getRecentDonations();
+        $db = $donationModel->getDb();
         
-        $this->view('admin/donations', [
-            'stats' => $stats,
-            'recentDonations' => $recentDonations
-        ]);
+        try {
+            $donations = $db->query("
+                SELECT d.*, v.business_name, s.shelter_name, u.name as requester_name
+                FROM donations d 
+                LEFT JOIN vendors v ON d.vendor_id = v.id 
+                LEFT JOIN shelters s ON d.shelter_id = s.id 
+                LEFT JOIN users u ON s.user_id = u.id 
+                ORDER BY d.created_at DESC
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            Session::flash('error', 'Failed to load donations: ' . $e->getMessage());
+            $donations = [];
+        }
+        
+        $this->view('admin/donations', ['donations' => $donations]);
     }
 }

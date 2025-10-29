@@ -36,14 +36,33 @@ $router->post('/admin/users/create', [AdminController::class, 'createUser']);
 $router->post('/admin/users/update', [AdminController::class, 'updateUser']);
 $router->post('/admin/users/toggle-status', [AdminController::class, 'toggleUserStatus']);
 $router->post('/admin/users/delete', [AdminController::class, 'deleteUser']);
+
 $router->get('/admin/vendors', [AdminController::class, 'vendors']);
+$router->post('/admin/vendors/create', [AdminController::class, 'createVendor']);
+$router->post('/admin/vendors/update', [AdminController::class, 'updateVendor']);
+$router->post('/admin/vendors/toggle-status', [AdminController::class, 'toggleVendorStatus']);
+$router->post('/admin/vendors/delete', [AdminController::class, 'deleteVendor']);
 $router->post('/admin/vendors/approve', [AdminController::class, 'approveVendor']);
+
+$router->get('/admin/shelters', [AdminController::class, 'shelters']); // FIXED: Changed from 'shelter' to 'shelters'
+$router->post('/admin/shelters/approve', [AdminController::class, 'approveShelter']);
+
+$router->get('/admin/approvals', [AdminController::class, 'approvals']);
+$router->post('/admin/approve-driver', [AdminController::class, 'approveDriver']);
+$router->post('/admin/reject-vendor', [AdminController::class, 'rejectVendor']);
+$router->post('/admin/reject-driver', [AdminController::class, 'rejectDriver']);
+$router->post('/admin/reject-shelter', [AdminController::class, 'rejectShelter']);
+
 $router->get('/admin/categories', [AdminController::class, 'categories']);
 $router->post('/admin/categories', [AdminController::class, 'categoryStore']);
 $router->post('/admin/categories/update', [AdminController::class, 'categoryUpdate']);
 $router->post('/admin/categories/delete', [AdminController::class, 'categoryDelete']);
-$router->get('/admin/shelters', [AdminController::class, 'shelters']);
-$router->post('/admin/shelters/approve', [AdminController::class, 'approveShelter']);
+
+$router->get('/admin/food', [AdminController::class, 'foodItems']);
+$router->get('/admin/orders', [AdminController::class, 'orders']);
+$router->get('/admin/donations', [DonationController::class, 'adminIndex']); // REMOVED DUPLICATE
+$router->get('/admin/logs', [AdminController::class, 'logs']);
+
 $router->get('/admin/verifications', [AdminController::class, 'vendorVerifications']);
 $router->post('/admin/verifications/approve', [AdminController::class, 'approveVendorVerification']);
 $router->post('/admin/verifications/reject', [AdminController::class, 'rejectVendorVerification']);
@@ -67,7 +86,7 @@ $router->get('/consumer/cart', [ConsumerController::class, 'cart']);
 $router->post('/consumer/cart/add', [ConsumerController::class, 'cartAdd']);
 $router->post('/consumer/checkout', [ConsumerController::class, 'checkout']);
 $router->get('/consumer/orders', [ConsumerController::class, 'orders']);
-$router->get('/consumer/orders-details', [ConsumerController::class, 'orderDetails']);
+$router->get('/consumer/order-details', [ConsumerController::class, 'orderDetails']); // FIXED: Changed from 'orders-details'
 $router->post('/consumer/cart/update', [ConsumerController::class, 'cartUpdate']);
 $router->post('/consumer/cart/remove', [ConsumerController::class, 'cartRemove']);
 
@@ -110,7 +129,6 @@ $router->get('/donations/create', [DonationController::class, 'create']);
 $router->post('/donations/store', [DonationController::class, 'store']);
 $router->get('/donations/shelter-requests', [DonationController::class, 'shelterRequests']);
 $router->post('/donations/update-status', [DonationController::class, 'updateStatus']);
-$router->get('/admin/donations', [DonationController::class, 'adminIndex']);
 
 // API Routes
 $router->get('/api/delivery/status/{id}', [DeliveryController::class, 'getDeliveryStatus']);

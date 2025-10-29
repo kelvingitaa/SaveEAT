@@ -1,5 +1,11 @@
 <?php
-?><!doctype html>
+namespace App\Core;
+
+$user = Auth::check() ? Auth::user() : null;
+$userRole = $user['role'] ?? null;
+$userName = $user['name'] ?? null;
+?>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -7,18 +13,27 @@
   <title><?= APP_NAME ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    .navbar-brand { font-weight: 700; }
+    .nav-link { transition: color 0.2s; }
+    .nav-link:hover { color: #dbeafe !important; }
+    .dropdown-menu { border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .badge { font-size: 0.7em; }
+    .sticky-top { z-index: 1020; }
+  </style>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-light" style="background: linear-gradient(90deg, #2563eb 0%, #1e40af 100%);">
+<nav class="navbar navbar-expand-lg navbar-light sticky-top" style="background: linear-gradient(90deg, #2563eb 0%, #1e40af 100%);">
   <div class="container-fluid">
-    <a class="navbar-brand fw-bold text-white" href="<?= BASE_URL ?>" style="font-size:1.5rem;">SaveEAT</a>
+    <a class="navbar-brand fw-bold text-white" href="<?= BASE_URL ?>" style="font-size:1.5rem;">
+      <i class="bi bi-recycle me-2"></i>SaveEAT
+    </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="mainNav">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <?php if (\App\Core\Auth::check()): ?>
-          <?php $userRole = \App\Core\Auth::user()['role']; ?>
+        <?php if (Auth::check()): ?>
           
           <!-- Consumer Navigation -->
           <?php if ($userRole === 'consumer'): ?>
@@ -57,25 +72,28 @@
             <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/users"><i class="bi bi-people"></i> Users</a></li>
             <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/vendors"><i class="bi bi-shop"></i> Vendors</a></li>
             <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/shelters"><i class="bi bi-house-heart"></i> Shelters</a></li>
-            <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/verifications"><i class="bi bi-patch-check"></i> Verifications</a></li>
-            <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/categories"><i class="bi bi-tags"></i> Categories</a></li>
+            <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/approvals"><i class="bi bi-shield-check"></i> Approvals</a></li>
+            <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/food"><i class="bi bi-basket"></i> Food Items</a></li>
+            <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/orders"><i class="bi bi-receipt"></i> Orders</a></li>
             <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/donations"><i class="bi bi-heart"></i> Donations</a></li>
+            <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/logs"><i class="bi bi-clock-history"></i> Audit Logs</a></li>
           <?php endif; ?>
           
         <?php else: ?>
-          <!-- Public Navigation (visible to guests) - Only Join Our Mission -->
+          <!-- Public Navigation -->
           <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/register"><i class="bi bi-person-plus"></i> Join Our Mission</a></li>
+          <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/consumer"><i class="bi bi-shop"></i> Browse Food</a></li>
+          <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/donations"><i class="bi bi-heart"></i> Donations</a></li>
         <?php endif; ?>
       </ul>
       
       <ul class="navbar-nav ms-auto">
-        <?php if (\App\Core\Auth::check()): ?>
-          <?php $user = \App\Core\Auth::user(); ?>
+        <?php if (Auth::check()): ?>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-person-circle"></i> 
-              <?= htmlspecialchars($user['name']) ?>
-              <small class="badge bg-light text-dark ms-1"><?= ucfirst($user['role']) ?></small>
+              <?= htmlspecialchars($userName) ?>
+              <small class="badge bg-light text-dark ms-1"><?= ucfirst($userRole) ?></small>
             </a>
             <ul class="dropdown-menu">
               <li><span class="dropdown-item-text">
@@ -115,11 +133,8 @@
 </nav>
 
 <!-- Role-specific welcome banner -->
-<?php if (\App\Core\Auth::check()): ?>
+<?php if (Auth::check()): ?>
   <?php 
-  $userRole = \App\Core\Auth::user()['role'];
-  $userName = \App\Core\Auth::user()['name'];
-  
   $roleColors = [
     'consumer' => 'success',
     'vendor' => 'warning',
@@ -190,8 +205,7 @@
       <div class="col-md-3">
         <h6>Quick Links</h6>
         <ul class="list-unstyled">
-          <?php if (\App\Core\Auth::check()): ?>
-            <?php $userRole = \App\Core\Auth::user()['role']; ?>
+          <?php if (Auth::check()): ?>
             <?php if ($userRole === 'consumer'): ?>
               <li><a href="<?= BASE_URL ?>/consumer" class="text-light">Browse Food</a></li>
             <?php endif; ?>
@@ -206,7 +220,7 @@
       <div class="col-md-3">
         <h6>Account</h6>
         <ul class="list-unstyled">
-          <?php if (\App\Core\Auth::check()): ?>
+          <?php if (Auth::check()): ?>
             <li><a href="<?= BASE_URL ?>/logout" class="text-light">Logout</a></li>
           <?php else: ?>
             <li><a href="<?= BASE_URL ?>/login" class="text-light">Login</a></li>

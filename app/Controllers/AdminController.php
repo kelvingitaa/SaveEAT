@@ -8,6 +8,9 @@ use App\Models\User;
 use App\Models\Vendor;
 use App\Models\Category;
 use App\Models\Order;
+use App\Models\DeliveryDriver;
+use App\Models\Shelter;
+use App\Models\VendorVerification;
 use App\Core\CSRF;
 use PDO;
 
@@ -1125,5 +1128,313 @@ public function reports(): void
         'vendorIncome' => $vendorIncome,
         'monthlyTrends' => $monthlyTrends
     ]);
+}
+
+
+public function foodItems(): void
+{
+    Auth::requireRole(['admin']);
+    $db = (new User())->getDb();
+    
+    try {
+        $foodItems = $db->query("
+            SELECT fi.*, v.business_name, c.name as category_name 
+            FROM food_items fi 
+            LEFT JOIN vendors v ON fi.vendor_id = v.id 
+            LEFT JOIN categories c ON fi.category_id = c.id 
+            ORDER BY fi.created_at DESC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to load food items.');
+        $foodItems = [];
+    }
+    
+    $this->view('admin/items', ['foodItems' => $foodItems]);
+}
+
+public function orders(): void
+{
+    Auth::requireRole(['admin']);
+    $db = (new User())->getDb();
+    
+    try {
+        $orders = $db->query("
+            SELECT o.*, u.name as customer_name, u.email, u.phone 
+            FROM orders o 
+            LEFT JOIN users u ON o.user_id = u.id 
+            ORDER BY o.created_at DESC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to load orders.');
+        $orders = [];
+    }
+    
+    $this->view('admin/orders', ['orders' => $orders]);
+}
+
+public function logs(): void
+{
+    Auth::requireRole(['admin']);
+    // For now, return empty logs - you can implement this later
+    $this->view('admin/logs', ['logs' => []]);
+}
+
+// Add these approval methods to your AdminController class
+
+public function approvals(): void
+{
+    Auth::requireRole(['admin']);
+    
+    try {
+        $db = (new User())->getDb();
+        
+        // Get pending vendors
+        $pendingVendors = $db->query("
+            SELECT v.*, u.email, u.name as owner_name 
+            FROM vendors v 
+            LEFT JOIN users u ON v.user_id = u.id 
+            WHERE v.approved = 0 
+            ORDER BY v.created_at DESC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Get pending drivers
+        $pendingDrivers = $db->query("
+            SELECT dd.*, u.email, u.name, u.phone, u.address
+            FROM delivery_drivers dd 
+            LEFT JOIN users u ON dd.user_id = u.id 
+            WHERE dd.status = 'pending'
+            ORDER BY dd.created_at DESC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Get pending shelters
+        $pendingShelters = $db->query("
+            SELECT s.*, u.email, u.name as contact_person 
+            FROM shelters s 
+            LEFT JOIN users u ON s.user_id = u.id 
+            WHERE s.verified = 0 
+            ORDER BY s.created_at DESC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to load pending approvals.');
+        $pendingVendors = [];
+        $pendingDrivers = [];
+        $pendingShelters = [];
+    }
+    
+    $this->view('admin/approvals', [
+        'pendingVendors' => $pendingVendors,
+        'pendingDrivers' => $pendingDrivers,
+        'pendingShelters' => $pendingShelters
+    ]);
+}
+
+public function approveDriver(): void
+{
+    Auth::requireRole(['admin']);
+    
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        Session::flash('error', 'Method not allowed');
+        $this->redirect('/admin/approvals');
+    }
+    
+    $token = $_POST['_csrf'] ?? null;
+    if (!$token || !CSRF::check($token)) {
+        http_response_code(419);
+        Session::flash('error', 'Invalid CSRF token');
+        $this->redirect('/admin/approvals');
+    }
+    
+    $driverId = (int)($_POST['driver_id'] ?? 0);
+    
+    if ($driverId <= 0) {
+        Session::flash('error', 'Invalid driver specified');
+        $this->redirect('/admin/approvals');
+    }
+    
+    try {
+        $driverModel = new DeliveryDriver();
+        $db = $driverModel->getDb();
+        
+        // Update driver status to available
+        $stmt = $db->prepare('UPDATE delivery_drivers SET status = "available" WHERE id = :id');
+        $stmt->execute(['id' => $driverId]);
+        
+        Session::flash('success', 'Driver approved successfully');
+        
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to approve driver: ' . $e->getMessage());
+    }
+    
+    $this->redirect('/admin/approvals');
+}
+
+public function rejectVendor(): void
+{
+    Auth::requireRole(['admin']);
+    
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        Session::flash('error', 'Method not allowed');
+        $this->redirect('/admin/approvals');
+    }
+    
+    $token = $_POST['_csrf'] ?? null;
+    if (!$token || !CSRF::check($token)) {
+        http_response_code(419);
+        Session::flash('error', 'Invalid CSRF token');
+        $this->redirect('/admin/approvals');
+    }
+    
+    $vendorId = (int)($_POST['vendor_id'] ?? 0);
+    $reason = trim($_POST['reason'] ?? '');
+    
+    if ($vendorId <= 0) {
+        Session::flash('error', 'Invalid vendor specified');
+        $this->redirect('/admin/approvals');
+    }
+    
+    try {
+        $vendorModel = new Vendor();
+        $db = $vendorModel->getDb();
+        
+        // Delete vendor and associated user
+        $stmt = $db->prepare('SELECT user_id FROM vendors WHERE id = :id');
+        $stmt->execute(['id' => $vendorId]);
+        $vendor = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($vendor) {
+            // Delete vendor
+            $stmt = $db->prepare('DELETE FROM vendors WHERE id = :id');
+            $stmt->execute(['id' => $vendorId]);
+            
+            // Also delete the user account
+            $stmt = $db->prepare('DELETE FROM users WHERE id = :user_id');
+            $stmt->execute(['user_id' => $vendor['user_id']]);
+        }
+        
+        Session::flash('success', 'Vendor registration rejected');
+        
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to reject vendor: ' . $e->getMessage());
+    }
+    
+    $this->redirect('/admin/approvals');
+}
+
+public function rejectDriver(): void
+{
+    Auth::requireRole(['admin']);
+    
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        Session::flash('error', 'Method not allowed');
+        $this->redirect('/admin/approvals');
+    }
+    
+    $token = $_POST['_csrf'] ?? null;
+    if (!$token || !CSRF::check($token)) {
+        http_response_code(419);
+        Session::flash('error', 'Invalid CSRF token');
+        $this->redirect('/admin/approvals');
+    }
+    
+    $driverId = (int)($_POST['driver_id'] ?? 0);
+    $reason = trim($_POST['reason'] ?? '');
+    
+    if ($driverId <= 0) {
+        Session::flash('error', 'Invalid driver specified');
+        $this->redirect('/admin/approvals');
+    }
+    
+    try {
+        $driverModel = new DeliveryDriver();
+        $db = $driverModel->getDb();
+        
+        // Delete driver and associated user
+        $stmt = $db->prepare('SELECT user_id FROM delivery_drivers WHERE id = :id');
+        $stmt->execute(['id' => $driverId]);
+        $driver = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($driver) {
+            // Delete driver
+            $stmt = $db->prepare('DELETE FROM delivery_drivers WHERE id = :id');
+            $stmt->execute(['id' => $driverId]);
+            
+            // Also delete the user account
+            $stmt = $db->prepare('DELETE FROM users WHERE id = :user_id');
+            $stmt->execute(['user_id' => $driver['user_id']]);
+        }
+        
+        Session::flash('success', 'Driver registration rejected');
+        
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to reject driver: ' . $e->getMessage());
+    }
+    
+    $this->redirect('/admin/approvals');
+}
+
+public function rejectShelter(): void
+{
+    Auth::requireRole(['admin']);
+    
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        Session::flash('error', 'Method not allowed');
+        $this->redirect('/admin/approvals');
+    }
+    
+    $token = $_POST['_csrf'] ?? null;
+    if (!$token || !CSRF::check($token)) {
+        http_response_code(419);
+        Session::flash('error', 'Invalid CSRF token');
+        $this->redirect('/admin/approvals');
+    }
+    
+    $shelterId = (int)($_POST['shelter_id'] ?? 0);
+    $reason = trim($_POST['reason'] ?? '');
+    
+    if ($shelterId <= 0) {
+        Session::flash('error', 'Invalid shelter specified');
+        $this->redirect('/admin/approvals');
+    }
+    
+    try {
+        $shelterModel = new Shelter();
+        $db = $shelterModel->getDb();
+        
+        // Delete shelter and associated user
+        $stmt = $db->prepare('SELECT user_id FROM shelters WHERE id = :id');
+        $stmt->execute(['id' => $shelterId]);
+        $shelter = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($shelter) {
+            // Delete shelter
+            $stmt = $db->prepare('DELETE FROM shelters WHERE id = :id');
+            $stmt->execute(['id' => $shelterId]);
+            
+            // Also delete the user account
+            $stmt = $db->prepare('DELETE FROM users WHERE id = :user_id');
+            $stmt->execute(['user_id' => $shelter['user_id']]);
+        }
+        
+        Session::flash('success', 'Shelter registration rejected');
+        
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to reject shelter: ' . $e->getMessage());
+    }
+    
+    $this->redirect('/admin/approvals');
 }
 }
