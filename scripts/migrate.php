@@ -29,7 +29,6 @@ try {
         'pass' => DB_PASS,
         'charset' => 'utf8mb4'
     ]);
-    echo "Database connected successfully!\n";
 } catch (Exception $e) {
     die("Database connection failed: " . $e->getMessage() . "\n");
 }
@@ -87,7 +86,7 @@ $migrations = [
         FOREIGN KEY (verified_by_admin_id) REFERENCES users(id) ON DELETE SET NULL
     )",
 
-    // Food Items table - UPDATED: Added storage_instructions
+    // Food Items table
     "CREATE TABLE IF NOT EXISTS food_items (
         id INT AUTO_INCREMENT PRIMARY KEY,
         vendor_id INT NOT NULL,
@@ -134,7 +133,7 @@ $migrations = [
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )",
 
-    // Order Items table - UPDATED: Added line_total
+    // Order Items table
     "CREATE TABLE IF NOT EXISTS order_items (
         id INT AUTO_INCREMENT PRIMARY KEY,
         order_id INT NOT NULL,
@@ -173,7 +172,7 @@ $migrations = [
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )",
 
-    // Deliveries table - UPDATED: Added new columns and statuses
+    // Deliveries table
     "CREATE TABLE IF NOT EXISTS deliveries (
         id INT AUTO_INCREMENT PRIMARY KEY,
         order_id INT NOT NULL,
@@ -210,31 +209,22 @@ $migrations = [
     )"
 ];
 
-echo "Running migrations...\n";
-
-foreach ($migrations as $i => $sql) {
+foreach ($migrations as $sql) {
     try {
         DB::pdo()->exec($sql);
-        echo "✓ Migration " . ($i + 1) . " executed successfully\n";
     } catch (Exception $e) {
-        echo "✗ Migration " . ($i + 1) . " failed: " . $e->getMessage() . "\n";
         // Continue with next migration even if one fails
     }
 }
 
-// Add storage_instructions column if it doesn't exist (backup method)
+// Add storage_instructions column if it doesn't exist
 try {
     $checkSql = "SHOW COLUMNS FROM food_items LIKE 'storage_instructions'";
     $result = DB::pdo()->query($checkSql);
     if ($result->rowCount() === 0) {
         DB::pdo()->exec("ALTER TABLE food_items ADD COLUMN storage_instructions TEXT AFTER description");
-        echo "✓ Added storage_instructions column to food_items table\n";
-    } else {
-        echo "✓ storage_instructions column already exists\n";
     }
-} catch (Exception $e) {
-    echo "⚠ Could not add storage_instructions column: " . $e->getMessage() . "\n";
-}
+} catch (Exception $e) {}
 
 // Add line_total column if it doesn't exist
 try {
@@ -242,73 +232,36 @@ try {
     $result = DB::pdo()->query($checkSql);
     if ($result->rowCount() === 0) {
         DB::pdo()->exec("ALTER TABLE order_items ADD COLUMN line_total DECIMAL(10,2) AFTER discount_percent");
-        echo "✓ Added line_total column to order_items table\n";
-    } else {
-        echo "✓ line_total column already exists\n";
     }
-} catch (Exception $e) {
-    echo "⚠ Could not add line_total column: " . $e->getMessage() . "\n";
-}
+} catch (Exception $e) {}
 
-// FIX 1: Add missing columns to deliveries table for real-time tracking
-echo "\n=== UPDATING DELIVERIES TABLE FOR REAL-TIME TRACKING ===\n";
-
-// Add updated_at column to deliveries table if it doesn't exist
+// Update deliveries table for real-time tracking
 try {
     $checkSql = "SHOW COLUMNS FROM deliveries LIKE 'updated_at'";
     $result = DB::pdo()->query($checkSql);
     if ($result->rowCount() === 0) {
         DB::pdo()->exec("ALTER TABLE deliveries ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-        echo "✓ Added updated_at column to deliveries table\n";
-    } else {
-        echo "✓ updated_at column already exists in deliveries table\n";
     }
-} catch (Exception $e) {
-    echo "⚠ Could not add updated_at column to deliveries table: " . $e->getMessage() . "\n";
-}
+} catch (Exception $e) {}
 
-// Add vendor_confirmed_at column if it doesn't exist
 try {
     $checkSql = "SHOW COLUMNS FROM deliveries LIKE 'vendor_confirmed_at'";
     $result = DB::pdo()->query($checkSql);
     if ($result->rowCount() === 0) {
         DB::pdo()->exec("ALTER TABLE deliveries ADD COLUMN vendor_confirmed_at TIMESTAMP NULL");
-        echo "✓ Added vendor_confirmed_at column to deliveries table\n";
-    } else {
-        echo "✓ vendor_confirmed_at column already exists in deliveries table\n";
     }
-} catch (Exception $e) {
-    echo "⚠ Could not add vendor_confirmed_at column to deliveries table: " . $e->getMessage() . "\n";
-}
+} catch (Exception $e) {}
 
-// Add completed_at column if it doesn't exist
 try {
     $checkSql = "SHOW COLUMNS FROM deliveries LIKE 'completed_at'";
     $result = DB::pdo()->query($checkSql);
     if ($result->rowCount() === 0) {
         DB::pdo()->exec("ALTER TABLE deliveries ADD COLUMN completed_at TIMESTAMP NULL");
-        echo "✓ Added completed_at column to deliveries table\n";
-    } else {
-        echo "✓ completed_at column already exists in deliveries table\n";
     }
-} catch (Exception $e) {
-    echo "⚠ Could not add completed_at column to deliveries table: " . $e->getMessage() . "\n";
-}
+} catch (Exception $e) {}
 
-// Update deliveries table status enum to include new statuses
 try {
     DB::pdo()->exec("ALTER TABLE deliveries MODIFY COLUMN status ENUM('pending','pending_assignment','assigned','vendor_confirmed','picked_up','in_transit','delivered','completed','cancelled') DEFAULT 'pending'");
-    echo "✓ Updated deliveries table status enum with new statuses\n";
-} catch (Exception $e) {
-    echo "⚠ Could not update deliveries table status enum: " . $e->getMessage() . "\n";
-}
+} catch (Exception $e) {}
 
-echo "\n🎉 MIGRATIONS COMPLETED! Database is ready for real-time order tracking.\n";
-echo "===============================================\n";
-echo " NEW FEATURES ENABLED:\n";
-echo "✓ Automatic driver assignment\n";
-echo "✓ Vendor order confirmation system\n";
-echo "✓ Real-time delivery status updates\n";
-echo "✓ Multi-party confirmation workflow\n";
-echo "✓ Enhanced delivery tracking timeline\n";
-echo "===============================================\n";
+echo "Migrations completed successfully!\n";
