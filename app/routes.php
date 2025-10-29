@@ -69,6 +69,7 @@ $router->post('/consumer/cart/remove', [ConsumerController::class, 'cartRemove']
 $router->get('/shelter/register', [ShelterController::class, 'register']);
 $router->post('/shelter/register', [ShelterController::class, 'store']);
 $router->get('/shelter/dashboard', [ShelterController::class, 'dashboard']);
+$router->get('/shelter/requests', [ShelterController::class, 'donationRequests']);
 $router->get('/shelter/donations', [ShelterController::class, 'donationRequests']);
 $router->get('/shelter/history', [ShelterController::class, 'donationHistory']);
 $router->get('/shelter/settings', [ShelterController::class, 'settings']);

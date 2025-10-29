@@ -105,29 +105,28 @@ class ShelterController extends Controller
             'availableDonations' => $availableDonations
         ]);
     }
-
-    public function donationRequests(): void
-    {
-        Auth::requireRole(['shelter']);
-        $shelterModel = new Shelter();
-        $donationModel = new Donation();
-        
-        $shelter = $shelterModel->findByUserId(Auth::id());
-        
-        if (!$shelter) {
-            Session::flash('error', 'Shelter not found');
-            $this->redirect('/shelter/dashboard');
-        }
-
-        $availableDonations = $shelterModel->getAvailableDonationsForShelter($shelter['id']);
-        $shelterDonations = $donationModel->getDonationsByShelter($shelter['id']);
-        
-        $this->view('shelter/donations', [
-            'shelter' => $shelter,
-            'availableDonations' => $availableDonations,
-            'shelterDonations' => $shelterDonations
-        ]);
+public function donationRequests(): void
+{
+    Auth::requireRole(['shelter']);
+    $shelterModel = new Shelter();
+    $donationModel = new Donation();
+    
+    $shelter = $shelterModel->findByUserId(Auth::id());
+    
+    if (!$shelter) {
+        Session::flash('error', 'Shelter not found');
+        $this->redirect('/shelter/dashboard');
     }
+
+    $availableDonations = $shelterModel->getAvailableDonationsForShelter($shelter['id']);
+    $shelterDonations = $donationModel->getDonationsByShelter($shelter['id']);
+    
+    $this->view('shelter/donations', [
+        'shelter' => $shelter,
+        'availableDonations' => $availableDonations,
+        'shelterDonations' => $shelterDonations
+    ]);
+}
 
     public function requestDonation(): void
     {
