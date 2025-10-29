@@ -397,4 +397,58 @@ class VendorController extends Controller
         
         $this->redirect('/vendor/orders');
     }
+
+
+ public function donations(): void
+{
+    Auth::requireRole(['vendor']);
+    
+    $vendorModel = new Vendor();
+    $vendor = $vendorModel->findByUserId((int)Auth::id());
+    
+    if (!$vendor || !$vendor['approved']) {
+        http_response_code(403);
+        Session::flash('error', 'Your vendor account is not approved yet');
+        $this->redirect('/vendor');
+        return;
+    }
+    
+    $donations = [];
+    
+    try {
+        // Get donations related to this vendor's food items
+        $db = (new FoodItem())->getDb();
+        
+        // Check if donations table exists
+        $tableCheck = $db->query("SHOW TABLES LIKE 'donations'")->fetch();
+        
+        if ($tableCheck) {
+            $stmt = $db->prepare("
+                SELECT d.*, 
+                       fi.name as food_name,
+                       fi.expiry_date,
+                       s.shelter_name,
+                       s.location as shelter_location,
+                       s.contact_phone as shelter_phone
+                FROM donations d
+                JOIN food_items fi ON d.food_item_id = fi.id
+                JOIN shelters s ON d.shelter_id = s.id
+                WHERE fi.vendor_id = :vendor_id
+                ORDER BY d.created_at DESC
+            ");
+            $stmt->execute(['vendor_id' => $vendor['id']]);
+            $donations = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        }
+        
+    } catch (\PDOException $e) {
+        // Log error but don't show it to the user
+        error_log("Donations query error: " . $e->getMessage());
+        Session::flash('error', 'Unable to load donations at this time.');
+    }
+    
+    $this->view('vendor/donations', [
+        'donations' => $donations, 
+        'vendor' => $vendor
+    ]);
+}
 }

@@ -15,7 +15,7 @@ ob_start();
                 <ul class="nav flex-column">
                     <li class="nav-item mb-2"><a class="nav-link" href="<?= BASE_URL ?>/vendor"><i class="bi bi-house"></i> Dashboard</a></li>
                     <li class="nav-item mb-2"><a class="nav-link active fw-bold" href="<?= BASE_URL ?>/vendor/items"><i class="bi bi-basket"></i> Food Items</a></li>
-                    <li class="nav-item mb-2"><a class="nav-link" href="<?= BASE_URL ?>/donations"><i class="bi bi-heart"></i> Donations</a></li>
+                    <li class="nav-item mb-2"><a class="nav-link" href="<?= BASE_URL ?>/vendor/donations"><i class="bi bi-heart"></i> Donations</a></li>
                 </ul>
             </div>
         </nav>
