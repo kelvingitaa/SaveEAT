@@ -302,38 +302,177 @@ class VendorController extends Controller
     }
 
     public function orders(): void
-    {
-        Auth::requireRole(['vendor']);
-        
-        $vendorModel = new Vendor();
-        $vendor = $vendorModel->findByUserId((int)Auth::id());
-        
-        if (!$vendor || !$vendor['approved']) {
-            http_response_code(403);
-            Session::flash('error', 'Your vendor account is not approved yet');
-            $this->redirect('/vendor');
-            return;
-        }
-        
-        // Get vendor's orders
+{
+    Auth::requireRole(['vendor']);
+    
+    $vendorModel = new Vendor();
+    $vendor = $vendorModel->findByUserId((int)Auth::id());
+    
+    if (!$vendor || !$vendor['approved']) {
+        http_response_code(403);
+        Session::flash('error', 'Your vendor account is not approved yet');
+        $this->redirect('/vendor');
+        return;
+    }
+    
+    // Get vendor's orders with delivery information
+    $db = (new FoodItem())->getDb();
+    $stmt = $db->prepare("
+        SELECT o.*, 
+               u.name as customer_name, 
+               u.phone as customer_phone,
+               u.address as delivery_address,
+               d.status as delivery_status,
+               dd.user_id as driver_user_id,
+               du.name as driver_name,
+               du.phone as driver_phone,
+               GROUP_CONCAT(fi.name SEPARATOR ', ') as items,
+               COUNT(DISTINCT fi.id) as item_count
+        FROM orders o
+        JOIN order_items oi ON o.id = oi.order_id
+        JOIN food_items fi ON oi.food_item_id = fi.id
+        JOIN users u ON o.user_id = u.id
+        LEFT JOIN deliveries d ON o.id = d.order_id
+        LEFT JOIN delivery_drivers dd ON d.driver_id = dd.id
+        LEFT JOIN users du ON dd.user_id = du.id
+        WHERE fi.vendor_id = :vendor_id
+        GROUP BY o.id
+        ORDER BY o.created_at DESC
+    ");
+    $stmt->execute(['vendor_id' => $vendor['id']]);
+    $orders = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    
+    $this->view('vendor/orders', ['orders' => $orders, 'vendor' => $vendor]);
+}
+
+
+
+public function confirmOrder(): void
+{
+    Auth::requireRole(['vendor']);
+    
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        Session::flash('error', 'Method not allowed');
+        $this->redirect('/vendor/orders');
+    }
+    
+    $token = $_POST['_csrf'] ?? null;
+    if (!$token || !CSRF::check($token)) {
+        http_response_code(419);
+        Session::flash('error', 'Invalid CSRF token');
+        $this->redirect('/vendor/orders');
+    }
+    
+    $vendorModel = new Vendor();
+    $vendor = $vendorModel->findByUserId((int)Auth::id());
+    
+    if (!$vendor || !$vendor['approved']) {
+        http_response_code(403);
+        Session::flash('error', 'Your vendor account is not approved yet');
+        $this->redirect('/vendor');
+        return;
+    }
+    
+    $orderId = (int)($_POST['order_id'] ?? 0);
+    
+    try {
         $db = (new FoodItem())->getDb();
-        $stmt = $db->prepare("
-            SELECT o.*, u.name as customer_name, u.phone as customer_phone,
-                   GROUP_CONCAT(fi.name SEPARATOR ', ') as items
+        
+        // Verify the order belongs to this vendor and get delivery ID
+        $verifyStmt = $db->prepare("
+            SELECT d.id as delivery_id
             FROM orders o
             JOIN order_items oi ON o.id = oi.order_id
             JOIN food_items fi ON oi.food_item_id = fi.id
-            JOIN users u ON o.user_id = u.id
-            WHERE fi.vendor_id = :vendor_id
-            GROUP BY o.id
-            ORDER BY o.created_at DESC
+            LEFT JOIN deliveries d ON o.id = d.order_id
+            WHERE o.id = ? AND fi.vendor_id = ?
+            LIMIT 1
         ");
-        $stmt->execute(['vendor_id' => $vendor['id']]);
-        $orders = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $verifyStmt->execute([$orderId, $vendor['id']]);
+        $result = $verifyStmt->fetch();
         
-        $this->view('vendor/orders', ['orders' => $orders, 'vendor' => $vendor]);
+        if ($result && $result['delivery_id']) {
+            // Update delivery status to vendor_confirmed
+            $deliveryModel = new Delivery();
+            $deliveryModel->updateStatus((int)$result['delivery_id'], 'vendor_confirmed');
+            
+            // Also update order status to preparing
+            $updateStmt = $db->prepare("UPDATE orders SET status = 'preparing', updated_at = NOW() WHERE id = ?");
+            $updateStmt->execute([$orderId]);
+            
+            Session::flash('success', 'Order confirmed! Driver has been notified to pick up.');
+        } else {
+            Session::flash('error', 'Order not found or delivery not assigned');
+        }
+        
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to confirm order: ' . $e->getMessage());
     }
+    
+    $this->redirect('/vendor/orders');
+}
 
+
+
+public function markOrderReady(): void
+{
+    Auth::requireRole(['vendor']);
+    
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        Session::flash('error', 'Method not allowed');
+        $this->redirect('/vendor/orders');
+    }
+    
+    $token = $_POST['_csrf'] ?? null;
+    if (!$token || !CSRF::check($token)) {
+        http_response_code(419);
+        Session::flash('error', 'Invalid CSRF token');
+        $this->redirect('/vendor/orders');
+    }
+    
+    $vendorModel = new Vendor();
+    $vendor = $vendorModel->findByUserId((int)Auth::id());
+    
+    if (!$vendor || !$vendor['approved']) {
+        http_response_code(403);
+        Session::flash('error', 'Your vendor account is not approved yet');
+        $this->redirect('/vendor');
+        return;
+    }
+    
+    $orderId = (int)($_POST['order_id'] ?? 0);
+    
+    try {
+        $db = (new FoodItem())->getDb();
+        
+        // Verify the order belongs to this vendor
+        $verifyStmt = $db->prepare("
+            SELECT o.id FROM orders o
+            JOIN order_items oi ON o.id = oi.order_id
+            JOIN food_items fi ON oi.food_item_id = fi.id
+            WHERE o.id = ? AND fi.vendor_id = ?
+            LIMIT 1
+        ");
+        $verifyStmt->execute([$orderId, $vendor['id']]);
+        
+        if ($verifyStmt->fetch()) {
+            $updateStmt = $db->prepare("UPDATE orders SET status = 'ready', updated_at = NOW() WHERE id = ?");
+            $updateStmt->execute([$orderId]);
+            Session::flash('success', 'Order marked as ready for pickup!');
+        } else {
+            Session::flash('error', 'Order not found or access denied');
+        }
+        
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to update order status: ' . $e->getMessage());
+    }
+    
+    $this->redirect('/vendor/orders');
+}
     public function updateOrderStatus(): void
     {
         Auth::requireRole(['vendor']);
@@ -525,4 +664,6 @@ public function updateDonationStatus(): void
     
     $this->redirect('/vendor/donations');
 }
+
+
 }

@@ -66,10 +66,20 @@ ob_start();
                                             <td>
                                                 <small class="text-muted">
                                                     <?php
-                                                    // This would need to be populated from order items
-                                                    // For now, showing a placeholder
+                                                    // Get order items for this order
+                                                    $orderItems = (new \App\Models\Order())->getOrderItems($order['id']);
+                                                    $itemCount = count($orderItems);
+                                                    $firstItem = $itemCount > 0 ? $orderItems[0]['food_name'] : 'No items';
+                                                    
+                                                    if ($itemCount > 0) {
+                                                        echo '<i class="bi bi-basket"></i> ' . htmlspecialchars($firstItem);
+                                                        if ($itemCount > 1) {
+                                                            echo ' +' . ($itemCount - 1) . ' more';
+                                                        }
+                                                    } else {
+                                                        echo '<i class="bi bi-basket"></i> No items';
+                                                    }
                                                     ?>
-                                                    <i class="bi bi-basket"></i> Multiple items
                                                 </small>
                                             </td>
                                             <td>
@@ -122,13 +132,13 @@ ob_start();
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm">
-                                                    <button class="btn btn-outline-primary" onclick="viewOrderDetails(<?= $order['id'] ?>)">
-                                                        <i class="bi bi-eye"></i> Details
-                                                    </button>
+                                               <a href="<?= BASE_URL ?>/consumer/orders-details?id=<?= $order['id'] ?>" class="btn btn-outline-primary">
+    <i class="bi bi-eye"></i> Details
+</a>
                                                     <?php if ($order['status'] === 'preparing' || $order['status'] === 'ready'): ?>
-                                                        <button class="btn btn-outline-success">
+                                                        <a href="<?= BASE_URL ?>/delivery/track/<?= $order['id'] ?>" class="btn btn-outline-success">
                                                             <i class="bi bi-truck"></i> Track
-                                                        </button>
+                                                        </a>
                                                     <?php endif; ?>
                                                 </div>
                                             </td>
@@ -176,44 +186,6 @@ ob_start();
         </div>
     </div>
 </div>
-
-<!-- Order Details Modal (would need JavaScript implementation) -->
-<div class="modal fade" id="orderDetailsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Order Details #<span id="modalOrderId"></span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="orderDetailsContent">
-                <!-- Order details would be loaded here via AJAX -->
-                <div class="text-center py-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2">Loading order details...</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-function viewOrderDetails(orderId) {
-    // This would typically make an AJAX call to get order details
-    // For now, just show a basic alert
-    alert('Order details for order #' + orderId + '\n\nThis would show:\n• Ordered items with quantities\n• Individual prices\n• Delivery information\n• Order timeline');
-    
-    // Example of what this would do with proper backend:
-    // fetch(`/consumer/orders/${orderId}/details`)
-    //     .then(response => response.json())
-    //     .then(data => {
-    //         document.getElementById('modalOrderId').textContent = orderId;
-    //         document.getElementById('orderDetailsContent').innerHTML = data.html;
-    //         new bootstrap.Modal(document.getElementById('orderDetailsModal')).show();
-    //     });
-}
-</script>
 
 <style>
 .badge {

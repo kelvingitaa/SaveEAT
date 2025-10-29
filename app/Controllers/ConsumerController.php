@@ -4,10 +4,11 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Core\Auth;
 use App\Core\CSRF;
-use App\Core\Session; // ADD THIS IMPORT
+use App\Core\Session;
 use App\Models\FoodItem;
 use App\Models\Category;
 use App\Models\Order;
+use App\Models\Delivery;
 
 class ConsumerController extends Controller
 {
@@ -27,7 +28,7 @@ class ConsumerController extends Controller
     {
         Auth::requireRole(['consumer']);
         if (!CSRF::check($_POST['_csrf'] ?? '')) { 
-            Session::flash('error', 'Invalid CSRF token'); // ADD SESSION FLASH
+            Session::flash('error', 'Invalid CSRF token');
             $this->redirect('/consumer/cart');
             return; 
         }
@@ -36,7 +37,7 @@ class ConsumerController extends Controller
         $cart = $_SESSION['cart'] ?? [];
         $cart[$id] = ($cart[$id] ?? 0) + $qty;
         $_SESSION['cart'] = $cart;
-        Session::flash('success', 'Item added to cart'); // ADD SUCCESS MESSAGE
+        Session::flash('success', 'Item added to cart');
         $this->redirect('/consumer/cart');
     }
 
@@ -71,7 +72,7 @@ class ConsumerController extends Controller
         }
         
         $id = (int)($_POST['id'] ?? 0);
-        $qty = max(1, min(10, (int)($_POST['qty'] ?? 1))); // Limit to 10 max
+        $qty = max(1, min(10, (int)($_POST['qty'] ?? 1)));
         
         $cart = $_SESSION['cart'] ?? [];
         if (isset($cart[$id])) {
@@ -134,7 +135,7 @@ class ConsumerController extends Controller
         }
         $orderId = (new Order())->createOrder((int)\App\Core\Auth::id(), $items, $total);
         unset($_SESSION['cart']);
-        Session::flash('success', 'Order placed successfully!'); // ADD SUCCESS MESSAGE
+        Session::flash('success', 'Order placed successfully!');
         $this->view('consumer/checkout_success', ['order_id' => $orderId, 'total' => $total]);
     }
 
@@ -145,26 +146,40 @@ class ConsumerController extends Controller
         $this->view('consumer/orders', ['orders' => $orders]);
     }
 
-    public function orderDetails($orderId): void
-{
-    Auth::requireRole(['consumer']);
-    
-    // Get order details
-    $order = (new Order())->find((int)$orderId);
-    
-    // Verify the order belongs to the current user
-    if (!$order || $order['user_id'] != Auth::id()) {
-        Session::flash('error', 'Order not found');
-        $this->redirect('/consumer/orders');
-        return;
+    public function orderDetails(): void
+    {
+        Auth::requireRole(['consumer']);
+        
+        $orderId = (int)($_GET['id'] ?? 0);
+        
+        if ($orderId <= 0) {
+            Session::flash('error', 'Invalid order ID');
+            $this->redirect('/consumer/orders');
+            return;
+        }
+        
+        // Get order details
+        $order = (new Order())->find($orderId);
+        
+        // Verify the order belongs to the current user
+        if (!$order || $order['user_id'] != Auth::id()) {
+            Session::flash('error', 'Order not found');
+            $this->redirect('/consumer/orders');
+            return;
+        }
+        
+        // Get order items 
+        $orderItems = (new Order())->getOrderItems($orderId);
+        
+        // Get delivery information
+        $delivery = (new Delivery())->findByOrderId($orderId);
+        $deliveryStatus = $delivery ? (new Delivery())->getDeliveryStatus($orderId) : null;
+        
+        $this->view('consumer/order-details', [
+            'order' => $order,
+            'orderItems' => $orderItems,
+            'delivery' => $delivery,
+            'deliveryStatus' => $deliveryStatus
+        ]);
     }
-    
-    // Get order items 
-    $orderItems = (new Order())->getOrderItems((int)$orderId);
-    
-    $this->view('consumer/order-details', [
-        'order' => $order,
-        'orderItems' => $orderItems
-    ]);
-}
 }

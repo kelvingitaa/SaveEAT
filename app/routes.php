@@ -15,7 +15,7 @@ use App\Controllers\DonationController;
 // Home
 $router->get('/', [ConsumerController::class, 'index']);
 
-// Auth Routes - UPDATED
+// Auth Routes
 $router->get('/login', [AuthController::class, 'showLogin']);
 $router->post('/login', [AuthController::class, 'login']);
 $router->get('/register', [AuthController::class, 'showRegisterSelect']);
@@ -57,12 +57,17 @@ $router->post('/vendor/items/update', [VendorController::class, 'itemUpdate']);
 $router->post('/vendor/items/delete', [VendorController::class, 'itemDelete']);
 $router->get('/vendor/donations', [VendorController::class, 'donations']);
 $router->post('/vendor/donations/update-status', [VendorController::class, 'updateDonationStatus']);
+$router->get('/vendor/orders', [VendorController::class, 'orders']);
+$router->post('/vendor/confirm-order', [VendorController::class, 'confirmOrder']);
+$router->post('/vendor/mark-order-ready', [VendorController::class, 'markOrderReady']);
+
 // Consumer Routes
 $router->get('/consumer', [ConsumerController::class, 'index']);
 $router->get('/consumer/cart', [ConsumerController::class, 'cart']);
 $router->post('/consumer/cart/add', [ConsumerController::class, 'cartAdd']);
 $router->post('/consumer/checkout', [ConsumerController::class, 'checkout']);
 $router->get('/consumer/orders', [ConsumerController::class, 'orders']);
+$router->get('/consumer/orders-details', [ConsumerController::class, 'orderDetails']);
 $router->post('/consumer/cart/update', [ConsumerController::class, 'cartUpdate']);
 $router->post('/consumer/cart/remove', [ConsumerController::class, 'cartRemove']);
 
@@ -106,6 +111,9 @@ $router->post('/donations/store', [DonationController::class, 'store']);
 $router->get('/donations/shelter-requests', [DonationController::class, 'shelterRequests']);
 $router->post('/donations/update-status', [DonationController::class, 'updateStatus']);
 $router->get('/admin/donations', [DonationController::class, 'adminIndex']);
+
+// API Routes
+$router->get('/api/delivery/status/{id}', [DeliveryController::class, 'getDeliveryStatus']);
 
 // Cron job route
 $router->get('/cron/update-food-status', function() {

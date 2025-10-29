@@ -14,7 +14,7 @@ class ShelterController extends Controller
 {
     public function register(): void
     {
-        if (Auth::isLoggedIn()) {
+        if (Auth::check()) { // FIXED: Changed isLoggedIn() to check()
             $this->redirect('/');
         }
         $this->view('auth/register-shelter');
@@ -105,28 +105,29 @@ class ShelterController extends Controller
             'availableDonations' => $availableDonations
         ]);
     }
-public function donationRequests(): void
-{
-    Auth::requireRole(['shelter']);
-    $shelterModel = new Shelter();
-    $donationModel = new Donation();
-    
-    $shelter = $shelterModel->findByUserId(Auth::id());
-    
-    if (!$shelter) {
-        Session::flash('error', 'Shelter not found');
-        $this->redirect('/shelter/dashboard');
-    }
 
-    $availableDonations = $shelterModel->getAvailableDonationsForShelter($shelter['id']);
-    $shelterDonations = $donationModel->getDonationsByShelter($shelter['id']);
-    
-    $this->view('shelter/donations', [
-        'shelter' => $shelter,
-        'availableDonations' => $availableDonations,
-        'shelterDonations' => $shelterDonations
-    ]);
-}
+    public function donationRequests(): void
+    {
+        Auth::requireRole(['shelter']);
+        $shelterModel = new Shelter();
+        $donationModel = new Donation();
+        
+        $shelter = $shelterModel->findByUserId(Auth::id());
+        
+        if (!$shelter) {
+            Session::flash('error', 'Shelter not found');
+            $this->redirect('/shelter/dashboard');
+        }
+
+        $availableDonations = $shelterModel->getAvailableDonationsForShelter($shelter['id']);
+        $shelterDonations = $donationModel->getDonationsByShelter($shelter['id']);
+        
+        $this->view('shelter/donations', [
+            'shelter' => $shelter,
+            'availableDonations' => $availableDonations,
+            'shelterDonations' => $shelterDonations
+        ]);
+    }
 
     public function requestDonation(): void
     {
@@ -223,7 +224,7 @@ public function donationRequests(): void
         $userModel = new User();
         
         $shelter = $shelterModel->findByUserId(Auth::id());
-        $user = $userModel->findByEmail(Auth::user()['email']); // FIXED: Use findByEmail instead of find
+        $user = $userModel->findByEmail(Auth::user()['email']);
         
         if (!$shelter || !$user) {
             Session::flash('error', 'Shelter or user not found');

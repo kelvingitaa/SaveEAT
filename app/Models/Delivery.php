@@ -8,32 +8,120 @@ class Delivery extends BaseModel
 {
     protected $table = 'deliveries';
 
-    public function assignDriver(int $orderId, int $driverId): bool
+    /**
+     * Create a pending delivery (when no drivers available)
+     */
+    public function createPendingDelivery(int $orderId): bool
     {
         $stmt = $this->db->prepare("
-            INSERT INTO deliveries (order_id, driver_id, status, created_at)
-            VALUES (:order_id, :driver_id, 'assigned', NOW())
+            INSERT INTO deliveries (order_id, status, created_at)
+            VALUES (:order_id, 'pending_assignment', NOW())
         ");
-        return $stmt->execute([
-            'order_id' => $orderId,
-            'driver_id' => $driverId
-        ]);
+        return $stmt->execute(['order_id' => $orderId]);
+    }
+
+    public function assignDriver(int $orderId, int $driverId): bool
+    {
+        // Check if delivery already exists
+        $existing = $this->findByOrderId($orderId);
+        
+        if ($existing) {
+            // Update existing delivery with driver
+            $stmt = $this->db->prepare("
+                UPDATE deliveries 
+                SET driver_id = :driver_id, status = 'assigned', updated_at = NOW()
+                WHERE order_id = :order_id
+            ");
+            return $stmt->execute([
+                'order_id' => $orderId,
+                'driver_id' => $driverId
+            ]);
+        } else {
+            // Create new delivery assignment
+            $stmt = $this->db->prepare("
+                INSERT INTO deliveries (order_id, driver_id, status, created_at)
+                VALUES (:order_id, :driver_id, 'assigned', NOW())
+            ");
+            return $stmt->execute([
+                'order_id' => $orderId,
+                'driver_id' => $driverId
+            ]);
+        }
     }
 
     public function updateStatus(int $deliveryId, string $status): bool
     {
-        $sql = "UPDATE deliveries SET status = :status";
+        $allowedStatuses = ['pending_assignment', 'assigned', 'vendor_confirmed', 'picked_up', 'in_transit', 'delivered', 'completed', 'cancelled'];
+        
+        if (!in_array($status, $allowedStatuses)) {
+            throw new \InvalidArgumentException('Invalid delivery status');
+        }
+        
+        $sql = "UPDATE deliveries SET status = :status, updated_at = NOW()";
         $params = ['id' => $deliveryId, 'status' => $status];
         
-        if ($status === 'picked_up') {
+        // Set timestamps for specific status changes
+        if ($status === 'vendor_confirmed') {
+            $sql .= ", vendor_confirmed_at = NOW()";
+        } elseif ($status === 'picked_up') {
             $sql .= ", pickup_time = NOW()";
         } elseif ($status === 'delivered') {
             $sql .= ", delivery_time = NOW()";
+        } elseif ($status === 'completed') {
+            $sql .= ", completed_at = NOW()";
         }
         
         $sql .= " WHERE id = :id";
         $stmt = $this->db->prepare($sql);
         return $stmt->execute($params);
+    }
+
+    /**
+     * Get delivery status with detailed information
+     */
+    public function getDeliveryStatus(int $orderId): array
+    {
+        $delivery = $this->findByOrderId($orderId);
+        
+        if (!$delivery) {
+            return [
+                'status' => 'not_found',
+                'message' => 'Delivery not found',
+                'timeline' => []
+            ];
+        }
+
+        // Build timeline based on status
+        $timeline = [];
+        $currentStatus = $delivery['status'];
+        
+        // Define all possible statuses in order
+        $allStatuses = [
+            'pending_assignment' => ['icon' => '⏳', 'label' => 'Waiting for driver assignment'],
+            'assigned' => ['icon' => '👨‍💼', 'label' => 'Driver assigned'],
+            'vendor_confirmed' => ['icon' => '🏪', 'label' => 'Vendor confirmed order'],
+            'picked_up' => ['icon' => '📦', 'label' => 'Driver picked up order'],
+            'in_transit' => ['icon' => '🚗', 'label' => 'On the way to you'],
+            'delivered' => ['icon' => '✅', 'label' => 'Delivered'],
+            'completed' => ['icon' => '🎉', 'label' => 'Order completed']
+        ];
+
+        foreach ($allStatuses as $status => $info) {
+            $timeline[] = [
+                'status' => $status,
+                'label' => $info['label'],
+                'icon' => $info['icon'],
+                'active' => $status === $currentStatus,
+                'completed' => array_search($status, array_keys($allStatuses)) <= array_search($currentStatus, array_keys($allStatuses))
+            ];
+        }
+
+        return [
+            'status' => $currentStatus,
+            'delivery' => $delivery,
+            'timeline' => $timeline,
+            'message' => $allStatuses[$currentStatus]['label'] ?? 'Unknown status'
+        ];
     }
 
     public function getDeliveriesByDriver(int $driverId): array

@@ -161,51 +161,53 @@ $migrations = [
     )",
 
     // Delivery System
+    "CREATE TABLE IF NOT EXISTS delivery_drivers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        vehicle_type VARCHAR(100),
+        license_plate VARCHAR(50),
+        license_file VARCHAR(500),
+        status ENUM('pending','available','busy','offline') DEFAULT 'pending', 
+        current_location VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )",
 
-"CREATE TABLE IF NOT EXISTS delivery_drivers (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    vehicle_type VARCHAR(100),
-    license_plate VARCHAR(50),
-    license_file VARCHAR(500),
-    status ENUM('pending','available','busy','offline') DEFAULT 'pending', 
-    current_location VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-)",
-    // Deliveries table
+    // Deliveries table - UPDATED: Added new columns and statuses
     "CREATE TABLE IF NOT EXISTS deliveries (
         id INT AUTO_INCREMENT PRIMARY KEY,
         order_id INT NOT NULL,
         driver_id INT,
         pickup_time TIMESTAMP NULL,
         delivery_time TIMESTAMP NULL,
-        status ENUM('pending','assigned','picked_up','in_transit','delivered','cancelled') DEFAULT 'pending',
+        vendor_confirmed_at TIMESTAMP NULL,
+        completed_at TIMESTAMP NULL,
+        status ENUM('pending','pending_assignment','assigned','vendor_confirmed','picked_up','in_transit','delivered','completed','cancelled') DEFAULT 'pending',
         delivery_address TEXT,
         customer_phone VARCHAR(20),
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
         FOREIGN KEY (driver_id) REFERENCES delivery_drivers(id) ON DELETE SET NULL
     )",
 
     // Food Donations
-  
-"CREATE TABLE IF NOT EXISTS donations (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    vendor_id INT NOT NULL,
-    shelter_id INT NOT NULL,
-    food_item_id INT NOT NULL,
-    quantity INT NOT NULL,
-    donation_date DATE NOT NULL,
-    status ENUM('pending','scheduled','completed','cancelled') DEFAULT 'pending',
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, 
-    FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE,
-    FOREIGN KEY (shelter_id) REFERENCES shelters(id) ON DELETE CASCADE,
-    FOREIGN KEY (food_item_id) REFERENCES food_items(id) ON DELETE CASCADE
-)"
+    "CREATE TABLE IF NOT EXISTS donations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        vendor_id INT NOT NULL,
+        shelter_id INT NOT NULL,
+        food_item_id INT NOT NULL,
+        quantity INT NOT NULL,
+        donation_date DATE NOT NULL,
+        status ENUM('pending','scheduled','completed','cancelled') DEFAULT 'pending',
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, 
+        FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE,
+        FOREIGN KEY (shelter_id) REFERENCES shelters(id) ON DELETE CASCADE,
+        FOREIGN KEY (food_item_id) REFERENCES food_items(id) ON DELETE CASCADE
+    )"
 ];
 
 echo "Running migrations...\n";
@@ -234,7 +236,7 @@ try {
     echo "⚠ Could not add storage_instructions column: " . $e->getMessage() . "\n";
 }
 
-
+// Add line_total column if it doesn't exist
 try {
     $checkSql = "SHOW COLUMNS FROM order_items LIKE 'line_total'";
     $result = DB::pdo()->query($checkSql);
@@ -248,4 +250,65 @@ try {
     echo "⚠ Could not add line_total column: " . $e->getMessage() . "\n";
 }
 
-echo "Migrations completed!\n";
+// FIX 1: Add missing columns to deliveries table for real-time tracking
+echo "\n=== UPDATING DELIVERIES TABLE FOR REAL-TIME TRACKING ===\n";
+
+// Add updated_at column to deliveries table if it doesn't exist
+try {
+    $checkSql = "SHOW COLUMNS FROM deliveries LIKE 'updated_at'";
+    $result = DB::pdo()->query($checkSql);
+    if ($result->rowCount() === 0) {
+        DB::pdo()->exec("ALTER TABLE deliveries ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+        echo "✓ Added updated_at column to deliveries table\n";
+    } else {
+        echo "✓ updated_at column already exists in deliveries table\n";
+    }
+} catch (Exception $e) {
+    echo "⚠ Could not add updated_at column to deliveries table: " . $e->getMessage() . "\n";
+}
+
+// Add vendor_confirmed_at column if it doesn't exist
+try {
+    $checkSql = "SHOW COLUMNS FROM deliveries LIKE 'vendor_confirmed_at'";
+    $result = DB::pdo()->query($checkSql);
+    if ($result->rowCount() === 0) {
+        DB::pdo()->exec("ALTER TABLE deliveries ADD COLUMN vendor_confirmed_at TIMESTAMP NULL");
+        echo "✓ Added vendor_confirmed_at column to deliveries table\n";
+    } else {
+        echo "✓ vendor_confirmed_at column already exists in deliveries table\n";
+    }
+} catch (Exception $e) {
+    echo "⚠ Could not add vendor_confirmed_at column to deliveries table: " . $e->getMessage() . "\n";
+}
+
+// Add completed_at column if it doesn't exist
+try {
+    $checkSql = "SHOW COLUMNS FROM deliveries LIKE 'completed_at'";
+    $result = DB::pdo()->query($checkSql);
+    if ($result->rowCount() === 0) {
+        DB::pdo()->exec("ALTER TABLE deliveries ADD COLUMN completed_at TIMESTAMP NULL");
+        echo "✓ Added completed_at column to deliveries table\n";
+    } else {
+        echo "✓ completed_at column already exists in deliveries table\n";
+    }
+} catch (Exception $e) {
+    echo "⚠ Could not add completed_at column to deliveries table: " . $e->getMessage() . "\n";
+}
+
+// Update deliveries table status enum to include new statuses
+try {
+    DB::pdo()->exec("ALTER TABLE deliveries MODIFY COLUMN status ENUM('pending','pending_assignment','assigned','vendor_confirmed','picked_up','in_transit','delivered','completed','cancelled') DEFAULT 'pending'");
+    echo "✓ Updated deliveries table status enum with new statuses\n";
+} catch (Exception $e) {
+    echo "⚠ Could not update deliveries table status enum: " . $e->getMessage() . "\n";
+}
+
+echo "\n🎉 MIGRATIONS COMPLETED! Database is ready for real-time order tracking.\n";
+echo "===============================================\n";
+echo " NEW FEATURES ENABLED:\n";
+echo "✓ Automatic driver assignment\n";
+echo "✓ Vendor order confirmation system\n";
+echo "✓ Real-time delivery status updates\n";
+echo "✓ Multi-party confirmation workflow\n";
+echo "✓ Enhanced delivery tracking timeline\n";
+echo "===============================================\n";
