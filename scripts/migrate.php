@@ -190,20 +190,22 @@ $migrations = [
     )",
 
     // Food Donations
-    "CREATE TABLE IF NOT EXISTS donations (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        vendor_id INT NOT NULL,
-        shelter_id INT NOT NULL,
-        food_item_id INT NOT NULL,
-        quantity INT NOT NULL,
-        donation_date DATE NOT NULL,
-        status ENUM('pending','scheduled','completed','cancelled') DEFAULT 'pending',
-        notes TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE,
-        FOREIGN KEY (shelter_id) REFERENCES shelters(id) ON DELETE CASCADE,
-        FOREIGN KEY (food_item_id) REFERENCES food_items(id) ON DELETE CASCADE
-    )"
+  
+"CREATE TABLE IF NOT EXISTS donations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_id INT NOT NULL,
+    shelter_id INT NOT NULL,
+    food_item_id INT NOT NULL,
+    quantity INT NOT NULL,
+    donation_date DATE NOT NULL,
+    status ENUM('pending','scheduled','completed','cancelled') DEFAULT 'pending',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, 
+    FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE,
+    FOREIGN KEY (shelter_id) REFERENCES shelters(id) ON DELETE CASCADE,
+    FOREIGN KEY (food_item_id) REFERENCES food_items(id) ON DELETE CASCADE
+)"
 ];
 
 echo "Running migrations...\n";

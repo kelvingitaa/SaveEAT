@@ -56,6 +56,7 @@ $router->post('/vendor/items/store', [VendorController::class, 'itemStore']);
 $router->post('/vendor/items/update', [VendorController::class, 'itemUpdate']);
 $router->post('/vendor/items/delete', [VendorController::class, 'itemDelete']);
 $router->get('/vendor/donations', [VendorController::class, 'donations']);
+$router->post('/vendor/donations/update-status', [VendorController::class, 'updateDonationStatus']);
 // Consumer Routes
 $router->get('/consumer', [ConsumerController::class, 'index']);
 $router->get('/consumer/cart', [ConsumerController::class, 'cart']);

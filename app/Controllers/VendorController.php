@@ -9,6 +9,7 @@ use App\Core\Session;
 use App\Models\Vendor;
 use App\Models\FoodItem;
 use App\Models\Category;
+use App\Models\Donation;
 
 class VendorController extends Controller
 {
@@ -450,5 +451,78 @@ class VendorController extends Controller
         'donations' => $donations, 
         'vendor' => $vendor
     ]);
+}
+
+public function updateDonationStatus(): void
+{
+    Auth::requireRole(['vendor']);
+    
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        Session::flash('error', 'Method not allowed');
+        $this->redirect('/vendor/donations');
+    }
+    
+    $token = $_POST['_csrf'] ?? null;
+    if (!$token || !CSRF::check($token)) {
+        http_response_code(419);
+        Session::flash('error', 'Invalid CSRF token');
+        $this->redirect('/vendor/donations');
+    }
+    
+    $vendorModel = new Vendor();
+    $vendor = $vendorModel->findByUserId((int)Auth::id());
+    
+    if (!$vendor || !$vendor['approved']) {
+        http_response_code(403);
+        Session::flash('error', 'Your vendor account is not approved yet');
+        $this->redirect('/vendor');
+        return;
+    }
+    
+    $donationId = (int)($_POST['donation_id'] ?? 0);
+    $status = $_POST['status'] ?? '';
+    
+    $allowedStatuses = ['scheduled', 'completed', 'cancelled'];
+    if ($donationId <= 0 || !in_array($status, $allowedStatuses)) {
+        Session::flash('error', 'Invalid donation or status');
+        $this->redirect('/vendor/donations');
+    }
+    
+    try {
+        $db = (new FoodItem())->getDb();
+        
+        // Verify the donation belongs to this vendor
+        $verifyStmt = $db->prepare("
+            SELECT d.id FROM donations d
+            JOIN food_items fi ON d.food_item_id = fi.id
+            WHERE d.id = ? AND fi.vendor_id = ?
+            LIMIT 1
+        ");
+        $verifyStmt->execute([$donationId, $vendor['id']]);
+        
+        if ($verifyStmt->fetch()) {
+            // Remove updated_at since it doesn't exist in donations table
+            $updateStmt = $db->prepare("UPDATE donations SET status = ? WHERE id = ?");
+            $updateStmt->execute([$status, $donationId]);
+            
+            // Set appropriate success message based on status
+            $statusMessages = [
+                'scheduled' => 'Donation request accepted and scheduled for pickup!',
+                'completed' => 'Donation marked as completed!',
+                'cancelled' => 'Donation request declined.'
+            ];
+            
+            Session::flash('success', $statusMessages[$status] ?? 'Status updated successfully!');
+        } else {
+            Session::flash('error', 'Donation not found or access denied');
+        }
+        
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        Session::flash('error', 'Failed to update donation status: ' . $e->getMessage());
+    }
+    
+    $this->redirect('/vendor/donations');
 }
 }
