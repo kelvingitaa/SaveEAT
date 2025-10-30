@@ -4,34 +4,140 @@ use App\Controllers\AuthController;
 use App\Controllers\AdminController;
 use App\Controllers\VendorController;
 use App\Controllers\ConsumerController;
+use App\Controllers\ShelterController;
+use App\Controllers\PaymentController;
+use App\Controllers\DeliveryController;
+use App\Controllers\VerificationController;
+use App\Controllers\DonationController;
 
 /* @var $router Router */
+
+// Home
 $router->get('/', [ConsumerController::class, 'index']);
 
-// Auth
+// Auth Routes
 $router->get('/login', [AuthController::class, 'showLogin']);
 $router->post('/login', [AuthController::class, 'login']);
-$router->get('/register', [AuthController::class, 'showRegister']);
-$router->post('/register', [AuthController::class, 'register']);
+$router->get('/register', [AuthController::class, 'showRegisterSelect']);
+$router->get('/register/consumer', [AuthController::class, 'showConsumerRegistration']);
+$router->post('/register/consumer', [AuthController::class, 'registerConsumer']);
+$router->get('/register/vendor', [AuthController::class, 'showVendorRegistration']);
+$router->post('/register/vendor', [AuthController::class, 'registerVendor']);
+$router->get('/register/shelter', [AuthController::class, 'showShelterRegistration']);
+$router->post('/register/shelter', [AuthController::class, 'registerShelter']);
+$router->get('/register/driver', [AuthController::class, 'showDriverRegistration']);
+$router->post('/register/driver', [AuthController::class, 'registerDriver']);
 $router->get('/logout', [AuthController::class, 'logout']);
 
-// Admin
+// Admin Routes
 $router->get('/admin', [AdminController::class, 'index']);
 $router->get('/admin/users', [AdminController::class, 'users']);
+$router->post('/admin/users/create', [AdminController::class, 'createUser']);
+$router->post('/admin/users/update', [AdminController::class, 'updateUser']);
+$router->post('/admin/users/toggle-status', [AdminController::class, 'toggleUserStatus']);
+$router->post('/admin/users/delete', [AdminController::class, 'deleteUser']);
+
 $router->get('/admin/vendors', [AdminController::class, 'vendors']);
+$router->post('/admin/vendors/create', [AdminController::class, 'createVendor']);
+$router->post('/admin/vendors/update', [AdminController::class, 'updateVendor']);
+$router->post('/admin/vendors/toggle-status', [AdminController::class, 'toggleVendorStatus']);
+$router->post('/admin/vendors/delete', [AdminController::class, 'deleteVendor']);
 $router->post('/admin/vendors/approve', [AdminController::class, 'approveVendor']);
+
+$router->get('/admin/shelters', [AdminController::class, 'shelters']); // FIXED: Changed from 'shelter' to 'shelters'
+$router->post('/admin/shelters/approve', [AdminController::class, 'approveShelter']);
+
+$router->get('/admin/approvals', [AdminController::class, 'approvals']);
+$router->post('/admin/approve-driver', [AdminController::class, 'approveDriver']);
+$router->post('/admin/reject-vendor', [AdminController::class, 'rejectVendor']);
+$router->post('/admin/reject-driver', [AdminController::class, 'rejectDriver']);
+$router->post('/admin/reject-shelter', [AdminController::class, 'rejectShelter']);
+
 $router->get('/admin/categories', [AdminController::class, 'categories']);
 $router->post('/admin/categories', [AdminController::class, 'categoryStore']);
+<<<<<<< HEAD
 $router->get('/admin/items', [AdminController::class, 'items']);
+=======
+$router->post('/admin/categories/update', [AdminController::class, 'categoryUpdate']);
+$router->post('/admin/categories/delete', [AdminController::class, 'categoryDelete']);
+>>>>>>> fbe2f2352f51f03e7ea1f2afe40b2cc8d8bb19ff
 
-// Vendor
+$router->get('/admin/food', [AdminController::class, 'foodItems']);
+$router->get('/admin/orders', [AdminController::class, 'orders']);
+$router->get('/admin/donations', [DonationController::class, 'adminIndex']); // REMOVED DUPLICATE
+$router->get('/admin/logs', [AdminController::class, 'logs']);
+
+$router->get('/admin/verifications', [AdminController::class, 'vendorVerifications']);
+$router->post('/admin/verifications/approve', [AdminController::class, 'approveVendorVerification']);
+$router->post('/admin/verifications/reject', [AdminController::class, 'rejectVendorVerification']);
+$router->get('/admin/reports', [AdminController::class, 'reports']);
+
+// Vendor Routes 
 $router->get('/vendor', [VendorController::class, 'index']);
 $router->get('/vendor/items', [VendorController::class, 'items']);
-$router->post('/vendor/items', [VendorController::class, 'itemStore']);
+$router->post('/vendor/items/store', [VendorController::class, 'itemStore']);
+$router->post('/vendor/items/update', [VendorController::class, 'itemUpdate']);
+$router->post('/vendor/items/delete', [VendorController::class, 'itemDelete']);
+$router->get('/vendor/donations', [VendorController::class, 'donations']);
+$router->post('/vendor/donations/update-status', [VendorController::class, 'updateDonationStatus']);
+$router->get('/vendor/orders', [VendorController::class, 'orders']);
+$router->post('/vendor/confirm-order', [VendorController::class, 'confirmOrder']);
+$router->post('/vendor/mark-order-ready', [VendorController::class, 'markOrderReady']);
 
-// Consumer
+// Consumer Routes
 $router->get('/consumer', [ConsumerController::class, 'index']);
 $router->get('/consumer/cart', [ConsumerController::class, 'cart']);
 $router->post('/consumer/cart/add', [ConsumerController::class, 'cartAdd']);
 $router->post('/consumer/checkout', [ConsumerController::class, 'checkout']);
 $router->get('/consumer/orders', [ConsumerController::class, 'orders']);
+$router->get('/consumer/order-details', [ConsumerController::class, 'orderDetails']); // FIXED: Changed from 'orders-details'
+$router->post('/consumer/cart/update', [ConsumerController::class, 'cartUpdate']);
+$router->post('/consumer/cart/remove', [ConsumerController::class, 'cartRemove']);
+
+// Shelter Routes
+$router->get('/shelter/register', [ShelterController::class, 'register']);
+$router->post('/shelter/register', [ShelterController::class, 'store']);
+$router->get('/shelter/dashboard', [ShelterController::class, 'dashboard']);
+$router->get('/shelter/requests', [ShelterController::class, 'donationRequests']);
+$router->get('/shelter/donations', [ShelterController::class, 'donationRequests']);
+$router->get('/shelter/history', [ShelterController::class, 'donationHistory']);
+$router->get('/shelter/settings', [ShelterController::class, 'settings']);
+$router->post('/shelter/donations/request', [ShelterController::class, 'requestDonation']);
+$router->post('/shelter/settings/update', [ShelterController::class, 'updateSettings']);
+
+// Payment Routes
+$router->get('/payment/process/{id}', [PaymentController::class, 'process']);
+$router->post('/payment/initiate', [PaymentController::class, 'initiate']);
+$router->get('/payment/success/{id}', [PaymentController::class, 'success']);
+$router->get('/payment/failed/{id}', [PaymentController::class, 'failed']);
+
+// Delivery Routes
+$router->get('/delivery/dashboard', [DeliveryController::class, 'dashboard']);
+$router->post('/delivery/update-status', [DeliveryController::class, 'updateStatus']);
+$router->post('/delivery/assign', [DeliveryController::class, 'assignDelivery']);
+$router->post('/delivery/update-delivery-status', [DeliveryController::class, 'updateDeliveryStatus']);
+$router->get('/delivery/track/{id}', [DeliveryController::class, 'track']);
+$router->get('/delivery/history', [DeliveryController::class, 'history']);
+$router->get('/delivery/settings', [DeliveryController::class, 'settings']);
+$router->post('/delivery/update-profile', [DeliveryController::class, 'updateProfile']);
+$router->post('/delivery/change-password', [DeliveryController::class, 'changePassword']);
+
+// Verification Routes
+$router->get('/verification/upload-license', [VerificationController::class, 'uploadLicense']);
+$router->post('/verification/process-license', [VerificationController::class, 'processLicense']);
+$router->get('/verification/status', [VerificationController::class, 'status']);
+
+// Donation Routes
+$router->get('/donations', [DonationController::class, 'index']);
+$router->get('/donations/create', [DonationController::class, 'create']);
+$router->post('/donations/store', [DonationController::class, 'store']);
+$router->get('/donations/shelter-requests', [DonationController::class, 'shelterRequests']);
+$router->post('/donations/update-status', [DonationController::class, 'updateStatus']);
+
+// API Routes
+$router->get('/api/delivery/status/{id}', [DeliveryController::class, 'getDeliveryStatus']);
+
+// Cron job route
+$router->get('/cron/update-food-status', function() {
+    require __DIR__ . '/../scripts/update_food_status.php';
+});

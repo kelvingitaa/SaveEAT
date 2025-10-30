@@ -45,3 +45,21 @@ Notes
 
 License
 MIT
+
+very very very important 
+# Remove the # to enable mod_rewrite it is in httpd.conf
+LoadModule rewrite_module modules/mod_rewrite.so
+
+# then in the same folder look for this  AllowOverride 
+replace None to All
+
+RewriteEngine On
+
+# Redirect all requests to index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# on app.php
+const BASE_URL = 'http://localhost/saveat/SaveEAT/public';
+# make sure its the same directory as the one going to your project
