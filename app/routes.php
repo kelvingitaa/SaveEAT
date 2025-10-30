@@ -55,12 +55,8 @@ $router->post('/admin/reject-shelter', [AdminController::class, 'rejectShelter']
 
 $router->get('/admin/categories', [AdminController::class, 'categories']);
 $router->post('/admin/categories', [AdminController::class, 'categoryStore']);
-<<<<<<< HEAD
-$router->get('/admin/items', [AdminController::class, 'items']);
-=======
 $router->post('/admin/categories/update', [AdminController::class, 'categoryUpdate']);
 $router->post('/admin/categories/delete', [AdminController::class, 'categoryDelete']);
->>>>>>> fbe2f2352f51f03e7ea1f2afe40b2cc8d8bb19ff
 
 $router->get('/admin/food', [AdminController::class, 'foodItems']);
 $router->get('/admin/orders', [AdminController::class, 'orders']);

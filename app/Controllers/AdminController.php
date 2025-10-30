@@ -139,9 +139,6 @@ class AdminController extends Controller
 
     public function createUser(): void
     {
-<<<<<<< HEAD
-    // Auth::requireRole(['admin']);
-=======
         Auth::requireRole(['admin']);
         
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
@@ -463,7 +460,6 @@ public function createVendor(): void
     {
         Auth::requireRole(['admin']);
         
->>>>>>> fbe2f2352f51f03e7ea1f2afe40b2cc8d8bb19ff
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
             http_response_code(405);
             Session::flash('error', 'Method not allowed');
@@ -756,12 +752,7 @@ public function createVendor(): void
 
     public function categoryStore(): void
     {
-<<<<<<< HEAD
-    // Auth::requireRole(['admin']);
-=======
-        Auth::requireRole(['admin']);
-        
->>>>>>> fbe2f2352f51f03e7ea1f2afe40b2cc8d8bb19ff
+    Auth::requireRole(['admin']);
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
             http_response_code(405);
             Session::flash('error', 'Method not allowed');
