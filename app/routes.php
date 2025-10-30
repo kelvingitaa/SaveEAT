@@ -22,6 +22,7 @@ $router->get('/admin/vendors', [AdminController::class, 'vendors']);
 $router->post('/admin/vendors/approve', [AdminController::class, 'approveVendor']);
 $router->get('/admin/categories', [AdminController::class, 'categories']);
 $router->post('/admin/categories', [AdminController::class, 'categoryStore']);
+$router->get('/admin/items', [AdminController::class, 'items']);
 
 // Vendor
 $router->get('/vendor', [VendorController::class, 'index']);

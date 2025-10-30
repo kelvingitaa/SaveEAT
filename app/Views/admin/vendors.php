@@ -1,19 +1,13 @@
+
 <?php
 ob_start();
 ?>
-<style>
-  .vendor-table-section { background: #fff; border-radius: 1rem; box-shadow: 0 2px 8px rgba(30,64,175,0.06); padding: 2rem; margin-bottom: 2rem; }
-  .vendor-table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-  .vendor-table-header h2 { margin: 0; font-size: 1.5rem; color: #2563eb; }
-  .vendor-table-filters { display: flex; gap: 1rem; }
-  .vendor-table-filters select, .vendor-table-filters input { min-width: 120px; }
-</style>
-<div class="vendor-table-section">
-  <div class="vendor-table-header">
-    <h2>Vendor Management</h2>
-    <button class="btn btn-primary" onclick="alert('Add Vendor')">Add Vendor</button>
+<div class="vendor-table-section" style="background:#fff;border-radius:1rem;box-shadow:0 2px 8px rgba(30,64,175,0.06);padding:2rem;margin-bottom:2rem;">
+  <div class="vendor-table-header d-flex justify-content-between align-items-center mb-3">
+    <h2 class="fw-bold text-primary mb-0"><i class="bi bi-shop"></i> Vendor Management</h2>
+    <button class="btn btn-primary" onclick="alert('Add Vendor')"><i class="bi bi-plus"></i> Add Vendor</button>
   </div>
-  <form class="vendor-table-filters mb-3" method="get" action="<?= BASE_URL ?>/admin/vendors">
+  <form class="vendor-table-filters d-flex gap-2 mb-3" method="get" action="<?= BASE_URL ?>/admin/vendors">
     <select name="status" class="form-select">
       <option value="">All Statuses</option>
       <option value="active" <?= ($_GET['status'] ?? '') === 'active' ? 'selected' : '' ?>>Active</option>
@@ -21,7 +15,7 @@ ob_start();
       <option value="suspended" <?= ($_GET['status'] ?? '') === 'suspended' ? 'selected' : '' ?>>Suspended</option>
     </select>
     <input type="text" name="q" class="form-control" placeholder="Search business/location" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>">
-    <button class="btn btn-outline-primary">Filter</button>
+    <button class="btn btn-outline-primary"><i class="bi bi-search"></i> Filter</button>
   </form>
   <div class="table-responsive">
     <table class="table table-striped align-middle">
@@ -38,14 +32,13 @@ ob_start();
         <?php foreach (($vendors ?? []) as $v): ?>
           <tr>
             <td><?= htmlspecialchars($v['business_name']) ?></td>
-            <td><?= htmlspecialchars($v['location']) ?></td>
-            <td><?= htmlspecialchars($v['contact_phone']) ?></td>
-            <td><span class="badge bg-<?= $v['approved'] ? 'success' : 'warning' ?>"><?= $v['approved'] ? 'Active' : 'Pending' ?></span></td>
+            <td><?= htmlspecialchars($v['location'] ?? '-') ?></td>
+            <td><?= htmlspecialchars($v['contact'] ?? $v['contact_phone'] ?? '-') ?></td>
+            <td><span class="badge bg-<?= ($v['status'] ?? ($v['approved'] ? 'active' : 'pending')) === 'active' ? 'success' : (($v['status'] ?? ($v['approved'] ? 'active' : 'pending')) === 'pending' ? 'warning' : 'danger') ?> text-capitalize">
+              <?= htmlspecialchars($v['status'] ?? ($v['approved'] ? 'Active' : 'Pending')) ?></span></td>
             <td>
-              <button class="btn btn-sm btn-outline-success" onclick="alert('Approve Vendor')">Approve</button>
-              <button class="btn btn-sm btn-outline-secondary" onclick="alert('Edit Vendor')">Edit</button>
-              <button class="btn btn-sm btn-outline-warning" onclick="alert('Suspend Vendor')">Suspend</button>
-              <button class="btn btn-sm btn-outline-danger" onclick="if(confirm('Delete vendor?'))alert('Delete Vendor')">Delete</button>
+              <button class="btn btn-sm btn-outline-secondary" title="Edit" onclick="alert('Edit Vendor')"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" title="Delete" onclick="if(confirm('Delete vendor?'))alert('Delete Vendor')"><i class="bi bi-trash"></i></button>
             </td>
           </tr>
         <?php endforeach; ?>
@@ -54,35 +47,6 @@ ob_start();
     </table>
   </div>
 </div>
-$content = ob_get_clean();
-include __DIR__ . '/../layouts/main.php';
-$token = CSRF::token();
-ob_start();
-?>
-<h3>Vendors</h3>
-<table class="table table-bordered table-striped">
-  <thead><tr><th>ID</th><th>Business</th><th>User</th><th>Email</th><th>Approved</th><th>Action</th></tr></thead>
-  <tbody>
-  <?php foreach ($vendors as $v): ?>
-    <tr>
-      <td><?= (int)$v['id'] ?></td>
-      <td><?= htmlspecialchars($v['business_name']) ?></td>
-      <td><?= htmlspecialchars($v['user_name']) ?></td>
-      <td><?= htmlspecialchars($v['email']) ?></td>
-      <td><?= $v['approved'] ? 'Yes' : 'No' ?></td>
-      <td>
-        <?php if (!$v['approved']): ?>
-          <form method="post" action="<?= BASE_URL ?>/admin/vendors/approve" class="d-inline">
-            <input type="hidden" name="_csrf" value="<?= $token ?>">
-            <input type="hidden" name="vendor_id" value="<?= (int)$v['id'] ?>">
-            <button class="btn btn-sm btn-success">Approve</button>
-          </form>
-        <?php endif; ?>
-      </td>
-    </tr>
-  <?php endforeach; ?>
-  </tbody>
-</table>
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../layouts/main.php';
