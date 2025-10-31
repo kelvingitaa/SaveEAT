@@ -132,7 +132,7 @@ ob_start();
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm">
-                                               <a href="<?= BASE_URL ?>/consumer/orders-details?id=<?= $order['id'] ?>" class="btn btn-outline-primary">
+                                               <a href="<?= BASE_URL ?>/consumer/order-details?id=<?= $order['id'] ?>" class="btn btn-outline-primary">
     <i class="bi bi-eye"></i> Details
 </a>
                                                     <?php if ($order['status'] === 'preparing' || $order['status'] === 'ready'): ?>

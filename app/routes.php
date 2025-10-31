@@ -44,7 +44,7 @@ $router->post('/admin/vendors/toggle-status', [AdminController::class, 'toggleVe
 $router->post('/admin/vendors/delete', [AdminController::class, 'deleteVendor']);
 $router->post('/admin/vendors/approve', [AdminController::class, 'approveVendor']);
 
-$router->get('/admin/shelters', [AdminController::class, 'shelters']); // FIXED: Changed from 'shelter' to 'shelters'
+$router->get('/admin/shelters', [AdminController::class, 'shelters']); 
 $router->post('/admin/shelters/approve', [AdminController::class, 'approveShelter']);
 
 $router->get('/admin/approvals', [AdminController::class, 'approvals']);

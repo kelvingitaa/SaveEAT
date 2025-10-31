@@ -5,14 +5,6 @@ use App\Core\CSRF;
 $token = CSRF::token();
 ob_start();
 ?>
-<<<<<<< HEAD
-<div class="user-table-section" style="background:#fff;border-radius:1rem;box-shadow:0 2px 8px rgba(30,64,175,0.06);padding:2rem;margin-bottom:2rem;">
-  <div class="user-table-header d-flex justify-content-between align-items-center mb-3">
-    <h2 class="fw-bold text-primary mb-0"><i class="bi bi-people"></i> User Management</h2>
-    <button class="btn btn-primary" onclick="alert('Add User')"><i class="bi bi-plus"></i> Add User</button>
-  </div>
-  <form class="user-table-filters d-flex gap-2 mb-3" method="get" action="<?= BASE_URL ?>/admin/users">
-=======
 <style>
   .user-table-section { background: #fff; border-radius: 1rem; box-shadow: 0 2px 8px rgba(30,64,175,0.06); padding: 2rem; margin-bottom: 2rem; }
   .user-table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
@@ -62,7 +54,6 @@ ob_start();
   </div>
 
   <form class="user-table-filters mb-3" method="get" action="<?= BASE_URL ?>/admin/users">
->>>>>>> fbe2f2352f51f03e7ea1f2afe40b2cc8d8bb19ff
     <select name="role" class="form-select">
       <option value="">All Roles</option>
       <option value="admin" <?= ($_GET['role'] ?? '') === 'admin' ? 'selected' : '' ?>>Admin</option>
@@ -99,11 +90,6 @@ ob_start();
             <td><span class="badge bg-<?= $u['status'] === 'active' ? 'success' : ($u['status'] === 'pending' ? 'warning' : 'danger') ?> text-capitalize"><?= htmlspecialchars($u['status']) ?></span></td>
             <td><?= isset($u['created_at']) ? htmlspecialchars($u['created_at']) : '-' ?></td>
             <td>
-<<<<<<< HEAD
-              <button class="btn btn-sm btn-outline-secondary" title="Edit" onclick="alert('Edit User')"><i class="bi bi-pencil"></i></button>
-              <button class="btn btn-sm btn-outline-warning" title="Suspend" onclick="alert('Suspend User')"><i class="bi bi-slash-circle"></i></button>
-              <button class="btn btn-sm btn-outline-danger" title="Delete" onclick="if(confirm('Delete user?'))alert('Delete User')"><i class="bi bi-trash"></i></button>
-=======
               <!-- Edit Button -->
               <button class="btn btn-sm btn-outline-secondary" onclick="showEditForm(<?= $u['id'] ?>, '<?= htmlspecialchars($u['name']) ?>', '<?= htmlspecialchars($u['email']) ?>', '<?= htmlspecialchars($u['role']) ?>', '<?= htmlspecialchars($u['status']) ?>')">Edit</button>
               
@@ -164,7 +150,6 @@ ob_start();
                   </div>
                 </form>
               </div>
->>>>>>> fbe2f2352f51f03e7ea1f2afe40b2cc8d8bb19ff
             </td>
           </tr>
         <?php endforeach; ?>
@@ -173,8 +158,6 @@ ob_start();
     </table>
   </div>
 </div>
-<<<<<<< HEAD
-=======
 
 <script>
 function showAddUserForm() {
@@ -206,7 +189,6 @@ function hideEditForm(userId) {
 }
 </script>
 
->>>>>>> fbe2f2352f51f03e7ea1f2afe40b2cc8d8bb19ff
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../layouts/main.php';

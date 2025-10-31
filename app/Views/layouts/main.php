@@ -4,6 +4,7 @@ namespace App\Core;
 $user = Auth::check() ? Auth::user() : null;
 $userRole = $user['role'] ?? null;
 $userName = $user['name'] ?? null;
+$isAdminPage = strpos($_SERVER['REQUEST_URI'], '/admin') !== false;
 ?>
 <!doctype html>
 <html lang="en">
@@ -131,41 +132,8 @@ $userName = $user['name'] ?? null;
     </div>
   </div>
 </nav>
-<<<<<<< HEAD
-<?php
-$isAdminPage = strpos($_SERVER['REQUEST_URI'], '/admin') !== false;
-?>
-<?php if ($isAdminPage): ?>
-<div class="admin-dashboard-layout" style="display:flex;min-height:100vh;background:#f3f4f6;">
-  <aside class="admin-sidepanel bg-white shadow-sm" style="width:260px;min-width:220px;max-width:260px;padding:2rem 1rem;display:flex;flex-direction:column;gap:2rem;">
-    <div class="mb-4 text-center">
-      <a href="<?= BASE_URL ?>/admin" class="fw-bold text-primary" style="font-size:1.7rem;text-decoration:none;"><i class="bi bi-speedometer2"></i> Admin</a>
-    </div>
-    <ul class="nav flex-column gap-2">
-      <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin"><i class="bi bi-house"></i> Dashboard</a></li>
-      <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/users"><i class="bi bi-people"></i> Users</a></li>
-      <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/vendors"><i class="bi bi-shop"></i> Vendors</a></li>
-      <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/categories"><i class="bi bi-tags"></i> Categories</a></li>
-      <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/items"><i class="bi bi-basket"></i> Food Items</a></li>
-      <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/orders"><i class="bi bi-receipt"></i> Orders</a></li>
-      <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/logs"><i class="bi bi-journal-text"></i> Audit Logs</a></li>
-    </ul>
-    <div class="mt-auto text-center">
-      <a href="<?= BASE_URL ?>/logout" class="btn btn-outline-primary w-100"><i class="bi bi-box-arrow-right"></i> Logout</a>
-    </div>
-  </aside>
-  <main class="admin-content-area" style="flex:1;padding:2.5rem 2rem;">
-    <?php if (!empty($content)) echo $content; ?>
-  </main>
-</div>
-<?php else: ?>
-<div class="container py-4">
-  <?php if (!empty($content)) echo $content; ?>
-</div>
-<?php endif; ?>
-=======
 
-<!-- Role-specific welcome banner -->
+<!-- Welcome Banner -->
 <?php if (Auth::check()): ?>
   <?php 
   $roleColors = [
@@ -224,9 +192,36 @@ $isAdminPage = strpos($_SERVER['REQUEST_URI'], '/admin') !== false;
   </div>
 <?php endif; ?>
 
-<div class="container py-4">
-  <?php if (!empty($content)) echo $content; ?>
-</div>
+<!-- SINGLE CONTENT AREA - NO DUPLICATION -->
+<?php if ($isAdminPage): ?>
+  <div class="admin-dashboard-layout" style="display:flex;min-height:calc(100vh - 200px);background:#f3f4f6;">
+    <aside class="admin-sidepanel bg-white shadow-sm" style="width:260px;min-width:220px;max-width:260px;padding:2rem 1rem;display:flex;flex-direction:column;gap:2rem;">
+      <div class="mb-4 text-center">
+        <a href="<?= BASE_URL ?>/admin" class="fw-bold text-primary" style="font-size:1.7rem;text-decoration:none;"><i class="bi bi-speedometer2"></i> Admin</a>
+      </div>
+      <ul class="nav flex-column gap-2">
+        <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin"><i class="bi bi-house"></i> Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/users"><i class="bi bi-people"></i> Users</a></li>
+        <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/vendors"><i class="bi bi-shop"></i> Vendors</a></li>
+        <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/categories"><i class="bi bi-tags"></i> Categories</a></li>
+        <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/items"><i class="bi bi-basket"></i> Food Items</a></li>
+        <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/orders"><i class="bi bi-receipt"></i> Orders</a></li>
+        <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/logs"><i class="bi bi-journal-text"></i> Audit Logs</a></li>
+      </ul>
+      <div class="mt-auto text-center">
+        <a href="<?= BASE_URL ?>/logout" class="btn btn-outline-primary w-100"><i class="bi bi-box-arrow-right"></i> Logout</a>
+      </div>
+    </aside>
+    <main class="admin-content-area" style="flex:1;padding:2.5rem 2rem;">
+      <?php if (!empty($content)) echo $content; ?>
+    </main>
+  </div>
+<?php else: ?>
+  <!-- Regular page content -->
+  <div class="container py-4">
+    <?php if (!empty($content)) echo $content; ?>
+  </div>
+<?php endif; ?>
 
 <footer class="text-light py-4 mt-5" style="background: linear-gradient(90deg, #2563eb 0%, #1e40af 100%);">
   <div class="container">
@@ -269,7 +264,6 @@ $isAdminPage = strpos($_SERVER['REQUEST_URI'], '/admin') !== false;
   </div>
 </footer>
 
->>>>>>> fbe2f2352f51f03e7ea1f2afe40b2cc8d8bb19ff
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

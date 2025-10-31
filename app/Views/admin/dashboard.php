@@ -8,7 +8,6 @@ $success = Session::flash('success');
 $error = Session::flash('error');
 ?>
 <style>
-  .dashboard-header { background: linear-gradient(90deg, #2563eb 0%, #1e40af 100%); color: #fff; padding: 2rem 1rem; border-radius: 1rem; margin-bottom: 2rem; }
   .dashboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
   .dashboard-card { background: #f8fafc; border-radius: 1rem; box-shadow: 0 2px 8px rgba(30,64,175,0.08); padding: 1.5rem; display: flex; align-items: center; gap: 1rem; }
   .dashboard-card .icon { font-size: 2rem; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 0.75rem; }
@@ -16,10 +15,6 @@ $error = Session::flash('error');
   .dashboard-card .stat-value { font-size: 1.5rem; font-weight: bold; }
   .dashboard-card .stat-change.positive { color: #22c55e; }
   .dashboard-card .stat-change.negative { color: #f97316; }
-  .dashboard-main { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; }
-  @media (max-width: 900px) { .dashboard-main { grid-template-columns: 1fr; } }
-  .dashboard-section { background: #fff; border-radius: 1rem; box-shadow: 0 2px 8px rgba(30,64,175,0.06); padding: 1.5rem; margin-bottom: 2rem; }
-  .dashboard-sidebar { background: #f1f5f9; border-radius: 1rem; padding: 1.5rem; }
   .pending-approvals { background: #fff; border-radius: 1rem; box-shadow: 0 2px 8px rgba(30,64,175,0.06); padding: 1.5rem; }
   .approval-item { display: flex; justify-content: between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid #e2e8f0; }
   .approval-item:last-child { border-bottom: none; }
@@ -27,27 +22,8 @@ $error = Session::flash('error');
 
 <div class="container-fluid">
     <div class="row">
-        <!-- Sidebar -->
-        <aside class="col-lg-3 col-md-4 mb-4">
-            <nav class="bg-white rounded shadow-sm p-3 sticky-top" style="top:80px;">
-                <h5 class="mb-3 text-primary">Admin Menu</h5>
-                <ul class="nav flex-column gap-2">
-                    <li class="nav-item"><a class="nav-link active fw-bold" href="<?= BASE_URL ?>/admin"><i class="bi bi-speedometer2"></i> Dashboard Overview</a></li>
-                    <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/users"><i class="bi bi-people"></i> User Management</a></li>
-                    <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/vendors"><i class="bi bi-shop"></i> Vendor Management</a></li>
-                    <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/shelters"><i class="bi bi-house-heart"></i> Shelter Management</a></li>
-                    <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/approvals"><i class="bi bi-shield-check"></i> Registration Approvals</a></li>
-                    <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/categories"><i class="bi bi-tags"></i> Category Management</a></li>
-                    <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/food"><i class="bi bi-basket"></i> Food Item Management</a></li>
-                    <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/orders"><i class="bi bi-receipt"></i> Order Management</a></li>
-                    <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/donations"><i class="bi bi-heart"></i> Donation Management</a></li>
-                    <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>/admin/logs"><i class="bi bi-clock-history"></i> Audit Logs</a></li>
-                </ul>
-            </nav>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="col-lg-9 col-md-8">
+        <!-- Main Content Only - Sidebar removed as it's in layout -->
+        <main class="col-12">
             <!-- Flash Messages -->
             <?php if ($success): ?>
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -158,7 +134,7 @@ $error = Session::flash('error');
                     </div>
 
                     <!-- Recent Users -->
-                    <div class="dashboard-section">
+                    <div class="bg-white rounded shadow-sm p-3 mb-4">
                         <h5 class="mb-3">Recent Users</h5>
                         <div class="table-responsive">
                             <table class="table table-striped">
@@ -207,7 +183,7 @@ $error = Session::flash('error');
                 <!-- Right Column -->
                 <div class="col-md-4">
                     <!-- Quick Stats -->
-                    <div class="dashboard-sidebar mb-4">
+                    <div class="bg-light rounded p-3 mb-4">
                         <h6 class="mb-3">Quick Stats</h6>
                         <div class="mb-3">
                             <small class="text-muted">Consumers</small>
@@ -229,7 +205,7 @@ $error = Session::flash('error');
 
                     <!-- Expiring Items -->
                     <?php if (!empty($expiringItems)): ?>
-                        <div class="dashboard-sidebar mb-4">
+                        <div class="bg-light rounded p-3 mb-4">
                             <h6 class="mb-3 text-warning">Expiring Soon</h6>
                             <?php foreach (array_slice($expiringItems, 0, 5) as $item): ?>
                                 <div class="mb-2">
@@ -242,7 +218,7 @@ $error = Session::flash('error');
 
                     <!-- Top Items -->
                     <?php if (!empty($topItems)): ?>
-                        <div class="dashboard-sidebar">
+                        <div class="bg-light rounded p-3">
                             <h6 class="mb-3">Top Selling Items</h6>
                             <?php foreach ($topItems as $item): ?>
                                 <div class="mb-2">
@@ -258,7 +234,6 @@ $error = Session::flash('error');
     </div>
 </div>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../layouts/main.php';

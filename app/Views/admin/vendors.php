@@ -4,14 +4,6 @@ use App\Core\CSRF;
 $token = CSRF::token();
 ob_start();
 ?>
-<<<<<<< HEAD
-<div class="vendor-table-section" style="background:#fff;border-radius:1rem;box-shadow:0 2px 8px rgba(30,64,175,0.06);padding:2rem;margin-bottom:2rem;">
-  <div class="vendor-table-header d-flex justify-content-between align-items-center mb-3">
-    <h2 class="fw-bold text-primary mb-0"><i class="bi bi-shop"></i> Vendor Management</h2>
-    <button class="btn btn-primary" onclick="alert('Add Vendor')"><i class="bi bi-plus"></i> Add Vendor</button>
-  </div>
-  <form class="vendor-table-filters d-flex gap-2 mb-3" method="get" action="<?= BASE_URL ?>/admin/vendors">
-=======
 <style>
   .vendor-table-section { background: #fff; border-radius: 1rem; box-shadow: 0 2px 8px rgba(30,64,175,0.06); padding: 2rem; margin-bottom: 2rem; }
   .vendor-table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
@@ -59,7 +51,6 @@ ob_start();
   </div>
 
   <form class="vendor-table-filters mb-3" method="get" action="<?= BASE_URL ?>/admin/vendors">
->>>>>>> fbe2f2352f51f03e7ea1f2afe40b2cc8d8bb19ff
     <select name="status" class="form-select">
       <option value="">All Statuses</option>
       <option value="active" <?= ($_GET['status'] ?? '') === 'active' ? 'selected' : '' ?>>Active</option>
@@ -92,15 +83,6 @@ ob_start();
           <tr>
             <td><?= (int)$v['id'] ?></td>
             <td><?= htmlspecialchars($v['business_name']) ?></td>
-<<<<<<< HEAD
-            <td><?= htmlspecialchars($v['location'] ?? '-') ?></td>
-            <td><?= htmlspecialchars($v['contact'] ?? $v['contact_phone'] ?? '-') ?></td>
-            <td><span class="badge bg-<?= ($v['status'] ?? ($v['approved'] ? 'active' : 'pending')) === 'active' ? 'success' : (($v['status'] ?? ($v['approved'] ? 'active' : 'pending')) === 'pending' ? 'warning' : 'danger') ?> text-capitalize">
-              <?= htmlspecialchars($v['status'] ?? ($v['approved'] ? 'Active' : 'Pending')) ?></span></td>
-            <td>
-              <button class="btn btn-sm btn-outline-secondary" title="Edit" onclick="alert('Edit Vendor')"><i class="bi bi-pencil"></i></button>
-              <button class="btn btn-sm btn-outline-danger" title="Delete" onclick="if(confirm('Delete vendor?'))alert('Delete Vendor')"><i class="bi bi-trash"></i></button>
-=======
             <td><?= htmlspecialchars($v['location'] ?? '') ?></td>
             <td><?= htmlspecialchars($v['contact_phone'] ?? '') ?></td>
             <td><?= htmlspecialchars($v['owner_name'] ?? 'N/A') ?></td>
@@ -174,7 +156,6 @@ ob_start();
                   </div>
                 </form>
               </div>
->>>>>>> fbe2f2352f51f03e7ea1f2afe40b2cc8d8bb19ff
             </td>
           </tr>
         <?php endforeach; ?>
@@ -196,8 +177,6 @@ ob_start();
     </nav>
   <?php endif; ?>
 </div>
-<<<<<<< HEAD
-=======
 
 <script>
 function showAddVendorForm() {
@@ -228,7 +207,6 @@ function hideEditForm(vendorId) {
 }
 </script>
 
->>>>>>> fbe2f2352f51f03e7ea1f2afe40b2cc8d8bb19ff
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../layouts/main.php';
