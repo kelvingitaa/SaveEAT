@@ -13,6 +13,51 @@ class User extends BaseModel
         return $row ?: null;
     }
 
+    public function findByRememberToken(string $token): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT u.* FROM users u 
+             WHERE u.remember_token = :token 
+             AND u.remember_expires > NOW() 
+             AND u.status = "active" 
+             LIMIT 1'
+        );
+        $stmt->execute(['token' => $token]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function updateRememberToken(int $userId, ?string $token = null, ?string $expires = null): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET remember_token = :token, remember_expires = :expires WHERE id = :id'
+        );
+        return $stmt->execute([
+            'token' => $token,
+            'expires' => $expires,
+            'id' => $userId
+        ]);
+    }
+
+    public function setEmailVerified(int $userId, bool $verified = true): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET email_verified = :verified WHERE id = :id'
+        );
+        return $stmt->execute([
+            'verified' => $verified ? 1 : 0,
+            'id' => $userId
+        ]);
+    }
+
+    public function isEmailVerified(int $userId): bool
+    {
+        $stmt = $this->db->prepare('SELECT email_verified FROM users WHERE id = :id LIMIT 1');
+        $stmt->execute(['id' => $userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row && $row['email_verified'] == 1;
+    }
+
     public function create(array $data): int
     {
         $stmt = $this->db->prepare('INSERT INTO users (name,email,password_hash,role,status,created_at,updated_at) VALUES (:name,:email,:password_hash,:role,:status,NOW(),NOW())');
@@ -28,7 +73,7 @@ class User extends BaseModel
 
     public function update(int $userId, array $data): bool
     {
-        $allowedFields = ['name', 'email', 'password_hash', 'phone', 'address', 'status', 'two_factor_code', 'two_factor_expires', 'email_verified'];
+        $allowedFields = ['name', 'email', 'password_hash', 'phone', 'address', 'status', 'two_factor_code', 'two_factor_expires', 'email_verified', 'remember_token', 'remember_expires'];
         $updates = [];
         $params = ['id' => $userId];
         

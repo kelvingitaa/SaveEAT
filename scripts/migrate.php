@@ -3,8 +3,6 @@ require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../vendor/autoload.php';
 
-
-
 // Manual autoloader for scripts
 spl_autoload_register(function ($class) {
     $prefix = 'App\\';
@@ -279,6 +277,35 @@ try {
     }
 } catch (Exception $e) {
     echo "⚠ Could not add 2FA columns: " . $e->getMessage() . "\n";
+}
+
+// Add remember_token and remember_expires columns to users table
+try {
+    $checkSql = "SHOW COLUMNS FROM users LIKE 'remember_token'";
+    $result = DB::pdo()->query($checkSql);
+    if ($result->rowCount() === 0) {
+        DB::pdo()->exec("ALTER TABLE users ADD COLUMN remember_token VARCHAR(64) NULL");
+        DB::pdo()->exec("ALTER TABLE users ADD COLUMN remember_expires TIMESTAMP NULL");
+        echo "✓ Added remember me columns to users table\n";
+    }
+} catch (Exception $e) {
+    echo "⚠ Could not add remember me columns: " . $e->getMessage() . "\n";
+}
+
+// CRITICAL: Ensure email_verified column exists and set default to TRUE for existing users
+try {
+    $checkSql = "SHOW COLUMNS FROM users LIKE 'email_verified'";
+    $result = DB::pdo()->query($checkSql);
+    if ($result->rowCount() === 0) {
+        DB::pdo()->exec("ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT TRUE");
+        echo "✓ Added email_verified column to users table\n";
+    }
+    
+    // Set all existing users as email verified
+    DB::pdo()->exec("UPDATE users SET email_verified = TRUE WHERE email_verified IS NULL OR email_verified = FALSE");
+    echo "✓ Set all existing users as email verified\n";
+} catch (Exception $e) {
+    echo "⚠ Could not setup email_verified column: " . $e->getMessage() . "\n";
 }
 
 echo "Migrations completed successfully!\n";

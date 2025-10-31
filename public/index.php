@@ -37,6 +37,11 @@ use App\Core\Auth;
 
 Session::start();
 
+// Auto-login with remember token if not already logged in
+if (!Auth::check()) {
+    Auth::tryRememberLogin();
+}
+
 DB::init([
     'host' => DB_HOST,
     'port' => DB_PORT,

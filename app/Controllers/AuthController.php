@@ -25,94 +25,99 @@ class AuthController extends Controller
         $this->view('auth/login');
     }
 
-public function login(): void
-{
-    if (!CSRF::check($_POST['_csrf'] ?? '')) {
-        $this->view('auth/login', ['error' => 'Invalid CSRF token']);
-        return;
-    }
+    public function login(): void
+    {
+        if (!CSRF::check($_POST['_csrf'] ?? '')) {
+            $this->view('auth/login', ['error' => 'Invalid CSRF token']);
+            return;
+        }
 
-    $email = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $remember = isset($_POST['remember_me']);
 
-    $userModel = new User();
-    $user = $userModel->findByEmail($email);
+        $userModel = new User();
+        $user = $userModel->findByEmail($email);
 
-    if (!$user || !password_verify($password, $user['password_hash'])) {
-        $this->view('auth/login', ['error' => 'Invalid credentials']);
-        return;
-    }
+        if (!$user || !password_verify($password, $user['password_hash'])) {
+            $this->view('auth/login', ['error' => 'Invalid credentials']);
+            return;
+        }
 
-    if ($user['status'] !== 'active') {
-        $this->view('auth/login', ['error' => 'Account not active']);
-        return;
-    }
+        if ($user['status'] !== 'active') {
+            $this->view('auth/login', ['error' => 'Account not active']);
+            return;
+        }
 
-    if ($user['role'] === 'consumer' && !Session::get('email_verified_' . $user['id'])) {
-        $code = $this->twoFactorService->initiateTwoFactor($user['id'], $user['email']);
+        // Check if consumer needs 2FA
+        if ($user['role'] === 'consumer' && !$userModel->isEmailVerified($user['id'])) {
+            $code = $this->twoFactorService->initiateTwoFactor($user['id'], $user['email']);
 
-        // ✅ FIX: set session before showing debug page
-        Session::set('pending_user_id', $user['id']);
-        Session::set('pending_user_data', $user);
+            Session::set('pending_user_id', $user['id']);
+            Session::set('pending_user_data', $user);
+            Session::set('pending_remember_me', $remember);
 
-        if (APP_DEBUG) {
+            if (APP_DEBUG) {
+                $this->view('auth/verify-2fa', [
+                    'email' => $user['email'],
+                    'debug_code' => $code,
+                    'success' => 'Verification code sent. Debug code: ' . $code
+                ]);
+                return;
+            }
+
             $this->view('auth/verify-2fa', [
                 'email' => $user['email'],
-                'debug_code' => $code,
-                'success' => 'Verification code sent. Debug code: ' . $code
+                'success' => 'Verification code sent to your email'
             ]);
             return;
         }
 
-        $this->view('auth/verify-2fa', [
-            'email' => $user['email'],
-            'success' => 'Verification code sent to your email'
-        ]);
-        return;
+        $this->completeLogin($user, $remember);
     }
 
-    $this->completeLogin($user);
-}
+    public function verifyTwoFactor(): void
+    {
+        if (!CSRF::check($_POST['_csrf'] ?? '')) {
+            $this->view('auth/verify-2fa', ['error' => 'Invalid CSRF token']);
+            return;
+        }
 
-  public function verifyTwoFactor(): void
-{
-    if (!CSRF::check($_POST['_csrf'] ?? '')) {
-        $this->view('auth/verify-2fa', ['error' => 'Invalid CSRF token']);
-        return;
+        $code = trim($_POST['code'] ?? '');
+        $userId = Session::get('pending_user_id');
+        $userData = Session::get('pending_user_data');
+        $remember = Session::get('pending_remember_me', false);
+
+        if (!$userId || !$userData) {
+            $this->redirect('/login');
+            return;
+        }
+
+        if (!Validator::required($code) || !preg_match('/^\d{6}$/', $code)) {
+            $this->view('auth/verify-2fa', [
+                'email' => $userData['email'],
+                'error' => 'Please enter a valid 6-digit code'
+            ]);
+            return;
+        }
+
+        if ($this->twoFactorService->verifyCode($userId, $code)) {
+            // Mark email as verified in DATABASE
+            $userModel = new User();
+            $userModel->setEmailVerified($userId, true);
+            
+            Session::remove('pending_user_id');
+            Session::remove('pending_user_data');
+            Session::remove('pending_remember_me');
+
+            $this->completeLogin($userData, $remember);
+        } else {
+            $this->view('auth/verify-2fa', [
+                'email' => $userData['email'],
+                'error' => 'Invalid or expired verification code'
+            ]);
+        }
     }
-
-    $code = trim($_POST['code'] ?? '');
-    $userId = Session::get('pending_user_id');
-    $userData = Session::get('pending_user_data');
-
-    if (!$userId || !$userData) {
-        $this->redirect('/login');
-        return;
-    }
-
-    if (!Validator::required($code) || !preg_match('/^\d{6}$/', $code)) {
-        $this->view('auth/verify-2fa', [
-            'email' => $userData['email'],
-            'error' => 'Please enter a valid 6-digit code'
-        ]);
-        return;
-    }
-
-    if ($this->twoFactorService->verifyCode($userId, $code)) {
-        // Mark session as verified
-        Session::set('email_verified_' . $userId, true);
-        Session::remove('pending_user_id');
-        Session::remove('pending_user_data');
-
-        $this->completeLogin($userData);
-    } else {
-        $this->view('auth/verify-2fa', [
-            'email' => $userData['email'],
-            'error' => 'Invalid or expired verification code'
-        ]);
-    }
-}
-
 
     public function resendCode(): void
     {
@@ -137,9 +142,9 @@ public function login(): void
         ]);
     }
 
-    private function completeLogin(array $user): void
+    private function completeLogin(array $user, bool $remember = false): void
     {
-        Auth::attempt($user);
+        Auth::attempt($user, $remember);
         
         if ($user['role'] === 'admin') $this->redirect('/admin');
         if ($user['role'] === 'vendor') $this->redirect('/vendor');

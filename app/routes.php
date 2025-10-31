@@ -9,15 +9,42 @@ use App\Controllers\PaymentController;
 use App\Controllers\DeliveryController;
 use App\Controllers\VerificationController;
 use App\Controllers\DonationController;
+use App\Core\Auth;
 
 /* @var $router Router */
 
 // Home
 $router->get('/', [ConsumerController::class, 'index']);
 
-// Auth Routes
-$router->get('/login', [AuthController::class, 'showLogin']);
-$router->post('/login', [AuthController::class, 'login']);
+// Auth Routes with login protection
+$router->get('/login', function() {
+    // If user is already logged in, redirect to appropriate dashboard
+    if (Auth::check()) {
+        $user = Auth::user();
+        if ($user['role'] === 'admin') header('Location: /admin');
+        if ($user['role'] === 'vendor') header('Location: /vendor');
+        if ($user['role'] === 'driver') header('Location: /delivery/dashboard');
+        if ($user['role'] === 'shelter') header('Location: /shelter/dashboard');
+        header('Location: /consumer');
+        exit;
+    }
+    (new AuthController())->showLogin();
+});
+
+$router->post('/login', function() {
+    // If user is already logged in, redirect to appropriate dashboard
+    if (Auth::check()) {
+        $user = Auth::user();
+        if ($user['role'] === 'admin') header('Location: /admin');
+        if ($user['role'] === 'vendor') header('Location: /vendor');
+        if ($user['role'] === 'driver') header('Location: /delivery/dashboard');
+        if ($user['role'] === 'shelter') header('Location: /shelter/dashboard');
+        header('Location: /consumer');
+        exit;
+    }
+    (new AuthController())->login();
+});
+
 $router->get('/register', [AuthController::class, 'showRegisterSelect']);
 $router->get('/register/consumer', [AuthController::class, 'showConsumerRegistration']);
 $router->post('/register/consumer', [AuthController::class, 'registerConsumer']);
@@ -60,7 +87,7 @@ $router->post('/admin/categories/delete', [AdminController::class, 'categoryDele
 
 $router->get('/admin/food', [AdminController::class, 'foodItems']);
 $router->get('/admin/orders', [AdminController::class, 'orders']);
-$router->get('/admin/donations', [DonationController::class, 'adminIndex']); // REMOVED DUPLICATE
+$router->get('/admin/donations', [DonationController::class, 'adminIndex']);
 $router->get('/admin/logs', [AdminController::class, 'logs']);
 
 $router->get('/admin/verifications', [AdminController::class, 'vendorVerifications']);
@@ -86,7 +113,7 @@ $router->get('/consumer/cart', [ConsumerController::class, 'cart']);
 $router->post('/consumer/cart/add', [ConsumerController::class, 'cartAdd']);
 $router->post('/consumer/checkout', [ConsumerController::class, 'checkout']);
 $router->get('/consumer/orders', [ConsumerController::class, 'orders']);
-$router->get('/consumer/order-details', [ConsumerController::class, 'orderDetails']); // FIXED: Changed from 'orders-details'
+$router->get('/consumer/order-details', [ConsumerController::class, 'orderDetails']);
 $router->post('/consumer/cart/update', [ConsumerController::class, 'cartUpdate']);
 $router->post('/consumer/cart/remove', [ConsumerController::class, 'cartRemove']);
 
@@ -132,7 +159,6 @@ $router->post('/donations/update-status', [DonationController::class, 'updateSta
 
 // API Routes
 $router->get('/api/delivery/status/{id}', [DeliveryController::class, 'getDeliveryStatus']);
-
 
 $router->post('/verify-2fa', [AuthController::class, 'verifyTwoFactor']);
 $router->post('/resend-code', [AuthController::class, 'resendCode']);
