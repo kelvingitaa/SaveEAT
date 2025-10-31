@@ -6,50 +6,145 @@ use App\Core\View;
 use App\Core\Validator;
 use App\Core\Auth;
 use App\Core\CSRF;
+use App\Core\Session;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\TwoFactorService;
 
 class AuthController extends Controller
 {
+    private $twoFactorService;
+
+    public function __construct()
+    {
+        $this->twoFactorService = new TwoFactorService();
+    }
+
     public function showLogin(): void
     {
         $this->view('auth/login');
     }
 
-    public function login(): void
+public function login(): void
+{
+    if (!CSRF::check($_POST['_csrf'] ?? '')) {
+        $this->view('auth/login', ['error' => 'Invalid CSRF token']);
+        return;
+    }
+
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+
+    $userModel = new User();
+    $user = $userModel->findByEmail($email);
+
+    if (!$user || !password_verify($password, $user['password_hash'])) {
+        $this->view('auth/login', ['error' => 'Invalid credentials']);
+        return;
+    }
+
+    if ($user['status'] !== 'active') {
+        $this->view('auth/login', ['error' => 'Account not active']);
+        return;
+    }
+
+    if ($user['role'] === 'consumer' && !Session::get('email_verified_' . $user['id'])) {
+        $code = $this->twoFactorService->initiateTwoFactor($user['id'], $user['email']);
+
+        // ✅ FIX: set session before showing debug page
+        Session::set('pending_user_id', $user['id']);
+        Session::set('pending_user_data', $user);
+
+        if (APP_DEBUG) {
+            $this->view('auth/verify-2fa', [
+                'email' => $user['email'],
+                'debug_code' => $code,
+                'success' => 'Verification code sent. Debug code: ' . $code
+            ]);
+            return;
+        }
+
+        $this->view('auth/verify-2fa', [
+            'email' => $user['email'],
+            'success' => 'Verification code sent to your email'
+        ]);
+        return;
+    }
+
+    $this->completeLogin($user);
+}
+
+  public function verifyTwoFactor(): void
+{
+    if (!CSRF::check($_POST['_csrf'] ?? '')) {
+        $this->view('auth/verify-2fa', ['error' => 'Invalid CSRF token']);
+        return;
+    }
+
+    $code = trim($_POST['code'] ?? '');
+    $userId = Session::get('pending_user_id');
+    $userData = Session::get('pending_user_data');
+
+    if (!$userId || !$userData) {
+        $this->redirect('/login');
+        return;
+    }
+
+    if (!Validator::required($code) || !preg_match('/^\d{6}$/', $code)) {
+        $this->view('auth/verify-2fa', [
+            'email' => $userData['email'],
+            'error' => 'Please enter a valid 6-digit code'
+        ]);
+        return;
+    }
+
+    if ($this->twoFactorService->verifyCode($userId, $code)) {
+        // Mark session as verified
+        Session::set('email_verified_' . $userId, true);
+        Session::remove('pending_user_id');
+        Session::remove('pending_user_data');
+
+        $this->completeLogin($userData);
+    } else {
+        $this->view('auth/verify-2fa', [
+            'email' => $userData['email'],
+            'error' => 'Invalid or expired verification code'
+        ]);
+    }
+}
+
+
+    public function resendCode(): void
     {
         if (!CSRF::check($_POST['_csrf'] ?? '')) { 
             echo 'Invalid CSRF'; 
             return; 
         }
-        
-        $email = trim($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
 
-        if (!Validator::email($email) || !Validator::min($password, 6)) {
-            $this->view('auth/login', ['error' => 'Invalid credentials']);
+        $userId = Session::get('pending_user_id');
+        $userData = Session::get('pending_user_data');
+
+        if (!$userId || !$userData) {
+            $this->redirect('/login');
             return;
         }
+
+        $code = $this->twoFactorService->initiateTwoFactor($userId, $userData['email']);
         
-        $userModel = new User();
-        $u = $userModel->findByEmail($email);
+        $this->view('auth/verify-2fa', [
+            'email' => $userData['email'],
+            'success' => 'New verification code sent to your email'
+        ]);
+    }
+
+    private function completeLogin(array $user): void
+    {
+        Auth::attempt($user);
         
-        if (!$u || !password_verify($password, $u['password_hash'])) {
-            $this->view('auth/login', ['error' => 'Invalid credentials']);
-            return;
-        }
-        
-        if ($u['status'] !== 'active') {
-            $this->view('auth/login', ['error' => 'Account not active']);
-            return;
-        }
-        
-        Auth::attempt($u);
-        
-        if ($u['role'] === 'admin') $this->redirect('/admin');
-        if ($u['role'] === 'vendor') $this->redirect('/vendor');
-        if ($u['role'] === 'driver') $this->redirect('/delivery/dashboard');
-        if ($u['role'] === 'shelter') $this->redirect('/shelter/dashboard');
+        if ($user['role'] === 'admin') $this->redirect('/admin');
+        if ($user['role'] === 'vendor') $this->redirect('/vendor');
+        if ($user['role'] === 'driver') $this->redirect('/delivery/dashboard');
+        if ($user['role'] === 'shelter') $this->redirect('/shelter/dashboard');
         $this->redirect('/consumer');
     }
 
@@ -90,6 +185,11 @@ class AuthController extends Controller
             'status' => $status,
         ]);
 
+        // Send welcome email for consumers
+        if ($role === 'consumer') {
+            $this->sendWelcomeEmail($email, $name);
+        }
+
         if ($role === 'vendor') {
             (new Vendor())->create($uid, []);
         }
@@ -100,16 +200,6 @@ class AuthController extends Controller
     public function showConsumerRegistration(): void
     {
         $this->view('auth/register-consumer');
-    }
-
-    public function showVendorRegistration(): void
-    {
-        $this->view('auth/register-vendor');
-    }
-
-    public function showShelterRegistration(): void
-    {
-        $this->view('auth/register-shelter');
     }
 
     public function registerConsumer(): void
@@ -142,7 +232,35 @@ class AuthController extends Controller
             'status' => 'active',
         ]);
 
+        // Send welcome email
+        $this->sendWelcomeEmail($email, $name);
+
         $this->view('auth/login', ['success' => 'Registration successful! Please login.']);
+    }
+
+    private function sendWelcomeEmail(string $email, string $name): void
+    {
+        $subject = "Welcome to SaveEAT!";
+        $body = "
+            <h2>Welcome to SaveEAT, {$name}!</h2>
+            <p>Thank you for joining our community dedicated to reducing food waste.</p>
+            <p>With SaveEAT, you can:</p>
+            <ul>
+                <li>Discover discounted food from local vendors</li>
+                <li>Save money while helping the environment</li>
+                <li>Get quick deliveries to your location</li>
+            </ul>
+            <p>Start exploring today and make a difference!</p>
+            <p>Best regards,<br>The SaveEAT Team</p>
+        ";
+
+        $mailer = new \App\Core\Mailer();
+        $mailer->send($email, $subject, $body);
+    }
+
+    public function showVendorRegistration(): void
+    {
+        $this->view('auth/register-vendor');
     }
 
     public function registerVendor(): void
@@ -210,6 +328,11 @@ class AuthController extends Controller
         }
 
         $this->view('auth/login', ['success' => 'Vendor registration submitted! Please wait for approval before logging in.']);
+    }
+
+    public function showShelterRegistration(): void
+    {
+        $this->view('auth/register-shelter');
     }
 
     public function showRegisterSelect(): void

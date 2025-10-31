@@ -133,6 +133,10 @@ $router->post('/donations/update-status', [DonationController::class, 'updateSta
 // API Routes
 $router->get('/api/delivery/status/{id}', [DeliveryController::class, 'getDeliveryStatus']);
 
+
+$router->post('/verify-2fa', [AuthController::class, 'verifyTwoFactor']);
+$router->post('/resend-code', [AuthController::class, 'resendCode']);
+
 // Cron job route
 $router->get('/cron/update-food-status', function() {
     require __DIR__ . '/../scripts/update_food_status.php';

@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+
 
 // Create direct PDO connection for seeding
 try {
@@ -42,7 +44,7 @@ $users = [
     ['Hope Shelter Manager', 'hope@shelter.com', 'shelter123', 'shelter', 'active'],
     ['Grace Home Manager', 'grace@shelter.com', 'shelter123', 'shelter', 'active'],
     ['Delivery Driver 1', 'driver1@saveeat.com', 'driver123', 'driver', 'active'],
-    ['Mary Consumer', 'mary@consumer.com', 'consumer123', 'consumer', 'active']
+    ['Mary Consumer', 'jim.amuto@strathmore.edu', 'consumer123', 'consumer', 'active']
 ];
 
 $userIds = [];

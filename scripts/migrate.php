@@ -1,6 +1,9 @@
 <?php
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+
+
 
 // Manual autoloader for scripts
 spl_autoload_register(function ($class) {
@@ -263,5 +266,19 @@ try {
 try {
     DB::pdo()->exec("ALTER TABLE deliveries MODIFY COLUMN status ENUM('pending','pending_assignment','assigned','vendor_confirmed','picked_up','in_transit','delivered','completed','cancelled') DEFAULT 'pending'");
 } catch (Exception $e) {}
+
+// Add 2FA columns to users table
+try {
+    $checkSql = "SHOW COLUMNS FROM users LIKE 'two_factor_code'";
+    $result = DB::pdo()->query($checkSql);
+    if ($result->rowCount() === 0) {
+        DB::pdo()->exec("ALTER TABLE users ADD COLUMN two_factor_code VARCHAR(6) NULL");
+        DB::pdo()->exec("ALTER TABLE users ADD COLUMN two_factor_expires TIMESTAMP NULL");
+        DB::pdo()->exec("ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE");
+        echo "✓ Added 2FA columns to users table\n";
+    }
+} catch (Exception $e) {
+    echo "⚠ Could not add 2FA columns: " . $e->getMessage() . "\n";
+}
 
 echo "Migrations completed successfully!\n";

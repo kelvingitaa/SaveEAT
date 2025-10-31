@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-
+date_default_timezone_set('Africa/Nairobi'); // or your timezone
 // Front controller
 ini_set('display_errors', '1');
 error_reporting(E_ALL);
@@ -9,6 +9,9 @@ error_reporting(E_ALL);
 define('BASE_PATH', dirname(__DIR__));
 define('APP_PATH', BASE_PATH . '/app');
 define('PUBLIC_PATH', __DIR__);
+
+// Include Composer autoloader
+require_once BASE_PATH . '/vendor/autoload.php';
 
 require_once BASE_PATH . '/config/app.php';
 require_once BASE_PATH . '/config/config.php';

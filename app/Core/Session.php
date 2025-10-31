@@ -21,6 +21,12 @@ class Session
         $_SESSION[$key] = $value;
     }
 
+    // ADD THIS MISSING METHOD
+    public static function remove(string $key): void
+    {
+        unset($_SESSION[$key]);
+    }
+
     public static function flash(string $key, ?string $value = null)
     {
         if ($value === null) {
