@@ -85,7 +85,7 @@ $router->post('/admin/categories', [AdminController::class, 'categoryStore']);
 $router->post('/admin/categories/update', [AdminController::class, 'categoryUpdate']);
 $router->post('/admin/categories/delete', [AdminController::class, 'categoryDelete']);
 
-$router->get('/admin/food', [AdminController::class, 'foodItems']);
+$router->get('/admin/items', [AdminController::class, 'foodItems']);
 $router->get('/admin/orders', [AdminController::class, 'orders']);
 $router->get('/admin/donations', [DonationController::class, 'adminIndex']);
 $router->get('/admin/logs', [AdminController::class, 'logs']);
