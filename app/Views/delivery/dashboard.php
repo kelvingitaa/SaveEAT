@@ -88,76 +88,110 @@ ob_start();
             </div>
 
             <!-- Assigned Deliveries -->
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="card-title mb-0"><i class="bi bi-list-task"></i> Your Deliveries</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Order #</th>
-                                    <th>Customer</th>
-                                    <th>Address</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($assignedDeliveries as $delivery): ?>
-                                    <tr>
-                                        <td>#<?= $delivery['order_id'] ?></td>
-                                        <td><?= htmlspecialchars($delivery['customer_name']) ?></td>
-                                        <td><?= htmlspecialchars($delivery['delivery_address']) ?></td>
-                                        <td>KSh <?= number_format($delivery['total_price'], 2) ?></td>
-                                        <td>
-                                            <span class="badge bg-<?= 
-                                                $delivery['status'] === 'delivered' ? 'success' : 
-                                                ($delivery['status'] === 'in_transit' ? 'primary' : 'warning')
-                                            ?>">
-                                                <?= ucfirst(str_replace('_', ' ', $delivery['status'])) ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <?php if ($delivery['status'] === 'assigned'): ?>
-                                                <form method="post" action="<?= BASE_URL ?>/delivery/update-delivery-status" class="d-inline">
-                                                    <input type="hidden" name="_csrf" value="<?= $token ?>">
-                                                    <input type="hidden" name="delivery_id" value="<?= $delivery['id'] ?>">
-                                                    <input type="hidden" name="status" value="picked_up">
-                                                    <button type="submit" class="btn btn-success btn-sm">Mark as Picked Up</button>
-                                                </form>
-                                            <?php elseif ($delivery['status'] === 'picked_up'): ?>
-                                                <form method="post" action="<?= BASE_URL ?>/delivery/update-delivery-status" class="d-inline">
-                                                    <input type="hidden" name="_csrf" value="<?= $token ?>">
-                                                    <input type="hidden" name="delivery_id" value="<?= $delivery['id'] ?>">
-                                                    <input type="hidden" name="status" value="in_transit">
-                                                    <button type="submit" class="btn btn-primary btn-sm">Start Delivery</button>
-                                                </form>
-                                            <?php elseif ($delivery['status'] === 'in_transit'): ?>
-                                                <form method="post" action="<?= BASE_URL ?>/delivery/update-delivery-status" class="d-inline">
-                                                    <input type="hidden" name="_csrf" value="<?= $token ?>">
-                                                    <input type="hidden" name="delivery_id" value="<?= $delivery['id'] ?>">
-                                                    <input type="hidden" name="status" value="delivered">
-                                                    <button type="submit" class="btn btn-success btn-sm">Mark as Delivered</button>
-                                                </form>
-                                            <?php endif; ?>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                                <?php if (empty($assignedDeliveries)): ?>
-                                    <tr>
-                                        <td colspan="6" class="text-center text-muted py-4">
-                                            No assigned deliveries.
-                                        </td>
-                                    </tr>
+           <!-- Assigned Deliveries -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="card-title mb-0"><i class="bi bi-list-task"></i> Your Deliveries</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Order #</th>
+                        <th>Customer</th>
+                        <th>Address</th>
+                        <th>Amount</th>
+                        <th>Delivery Status</th>
+                        <th>Order Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($assignedDeliveries as $delivery): ?>
+                        <tr>
+                            <td>#<?= $delivery['order_id'] ?></td>
+                            <td><?= htmlspecialchars($delivery['customer_name']) ?></td>
+                            <td><?= htmlspecialchars($delivery['delivery_address']) ?></td>
+                            <td>KSh <?= number_format($delivery['total_price'], 2) ?></td>
+                            <td>
+                                <span class="badge bg-<?= 
+                                    $delivery['status'] === 'delivered' ? 'success' : 
+                                    ($delivery['status'] === 'in_transit' ? 'primary' : 
+                                    ($delivery['status'] === 'picked_up' ? 'info' : 
+                                    ($delivery['status'] === 'vendor_confirmed' ? 'warning' : 'secondary')))
+                                ?>">
+                                    <?= ucfirst(str_replace('_', ' ', $delivery['status'])) ?>
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-<?= 
+                                    $delivery['order_status'] === 'ready' ? 'success' : 
+                                    ($delivery['order_status'] === 'preparing' ? 'primary' : 'info')
+                                ?>">
+                                    <?= ucfirst($delivery['order_status']) ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php if ($delivery['status'] === 'vendor_confirmed'): ?>
+                                    <?php if ($delivery['order_status'] === 'ready'): ?>
+                                        <form method="post" action="<?= BASE_URL ?>/delivery/update-delivery-status" class="d-inline">
+                                            <input type="hidden" name="_csrf" value="<?= $token ?>">
+                                            <input type="hidden" name="delivery_id" value="<?= $delivery['id'] ?>">
+                                            <input type="hidden" name="status" value="picked_up">
+                                            <button type="submit" class="btn btn-success btn-sm">
+                                                <i class="bi bi-check-circle"></i> Pick Up Order
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        <span class="text-warning">
+                                            <i class="bi bi-clock"></i> Waiting for vendor to prepare order
+                                        </span>
+                                    <?php endif; ?>
+                                <?php elseif ($delivery['status'] === 'picked_up'): ?>
+                                    <form method="post" action="<?= BASE_URL ?>/delivery/update-delivery-status" class="d-inline">
+                                        <input type="hidden" name="_csrf" value="<?= $token ?>">
+                                        <input type="hidden" name="delivery_id" value="<?= $delivery['id'] ?>">
+                                        <input type="hidden" name="status" value="in_transit">
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <i class="bi bi-truck"></i> Start Delivery
+                                        </button>
+                                    </form>
+                                <?php elseif ($delivery['status'] === 'in_transit'): ?>
+                                    <form method="post" action="<?= BASE_URL ?>/delivery/update-delivery-status" class="d-inline">
+                                        <input type="hidden" name="_csrf" value="<?= $token ?>">
+                                        <input type="hidden" name="delivery_id" value="<?= $delivery['id'] ?>">
+                                        <input type="hidden" name="status" value="delivered">
+                                        <button type="submit" class="btn btn-success btn-sm">
+                                            <i class="bi bi-check-lg"></i> Mark as Delivered
+                                        </button>
+                                    </form>
+                                <?php elseif ($delivery['status'] === 'delivered'): ?>
+                                    <span class="badge bg-success">Completed</span>
                                 <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+                                
+                                <!-- View Details Button -->
+                                <a href="<?= BASE_URL ?>/delivery/track/<?= $delivery['order_id'] ?>" 
+                                   class="btn btn-outline-info btn-sm ms-1" 
+                                   title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($assignedDeliveries)): ?>
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox display-4 d-block mb-2"></i>
+                                No assigned deliveries. You'll see orders here when they're assigned to you.
+                            </td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
         </main>
     </div>
 </div>

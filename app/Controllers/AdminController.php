@@ -1062,85 +1062,195 @@ public function reports(): void
     
     $db = (new User())->getDb();
     
+    // Get date range from request or default to last 30 days
+    $startDate = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
+    $endDate = $_GET['end_date'] ?? date('Y-m-d');
+    
     try {
-        // Food Saved Report
+        // 1. FOOD SAVED FROM WASTE REPORT - REAL TIME
         $foodSavedStmt = $db->prepare("
             SELECT 
-                COUNT(*) as total_items_saved,
-                SUM(fi.price * oi.quantity) as total_value_saved,
-                AVG(fi.price * oi.quantity) as avg_value_per_item,
-                COUNT(DISTINCT fi.vendor_id) as vendors_contributing
-            FROM order_items oi
-            LEFT JOIN food_items fi ON oi.food_item_id = fi.id
-            WHERE fi.expiry_date >= CURDATE()
+                COUNT(DISTINCT o.id) as total_orders_saved,
+                SUM(oi.quantity) as total_items_saved,
+                SUM(oi.line_total) as total_value_saved,
+                AVG(oi.line_total) as avg_value_per_order,
+                COUNT(DISTINCT fi.vendor_id) as vendors_contributing,
+                COUNT(DISTINCT o.user_id) as customers_served
+            FROM orders o
+            JOIN order_items oi ON o.id = oi.order_id
+            JOIN food_items fi ON oi.food_item_id = fi.id
+            WHERE o.created_at BETWEEN :start_date AND :end_date
+            AND o.status IN ('paid', 'completed', 'preparing', 'ready')
         ");
-        $foodSavedStmt->execute();
-        $foodSaved = $foodSavedStmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Donations Report
+        $foodSavedStmt->execute(['start_date' => $startDate, 'end_date' => $endDate]);
+        $foodSaved = $foodSavedStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        // 2. DONATIONS REPORT - REAL TIME (FIXED - donations table has quantity column)
         $donationsStmt = $db->prepare("
             SELECT 
                 COUNT(*) as total_donations,
                 SUM(quantity) as items_donated,
                 COUNT(DISTINCT vendor_id) as donating_vendors,
-                COUNT(DISTINCT shelter_id) as supported_shelters
-            FROM donations 
-            WHERE status IN ('completed', 'scheduled')
-            AND donation_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                COUNT(DISTINCT shelter_id) as supported_shelters,
+                (SELECT SUM(fi.price * d2.quantity) 
+                 FROM donations d2 
+                 JOIN food_items fi ON d2.food_item_id = fi.id 
+                 WHERE d2.status IN ('completed', 'scheduled') 
+                 AND d2.donation_date BETWEEN :start_date AND :end_date) as estimated_value
+            FROM donations d
+            WHERE d.status IN ('completed', 'scheduled')
+            AND d.donation_date BETWEEN :start_date AND :end_date
         ");
-        $donationsStmt->execute();
-        $donations = $donationsStmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Vendor Income Report
+        $donationsStmt->execute(['start_date' => $startDate, 'end_date' => $endDate]);
+        $donations = $donationsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        // 3. VENDOR INCOME & PERFORMANCE REPORT - REAL TIME
         $incomeStmt = $db->prepare("
             SELECT 
+                v.id,
                 v.business_name,
-                COUNT(o.id) as orders_completed,
-                SUM(o.total_price) as total_income,
-                AVG(o.total_price) as avg_order_value
-            FROM orders o
-            LEFT JOIN order_items oi ON o.id = oi.order_id
-            LEFT JOIN food_items fi ON oi.food_item_id = fi.id
-            LEFT JOIN vendors v ON fi.vendor_id = v.id
-            WHERE o.status IN ('completed', 'paid')
-            AND o.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-            GROUP BY v.id, v.business_name
+                v.location,
+                COUNT(DISTINCT o.id) as orders_completed,
+                COALESCE(SUM(o.total_price), 0) as total_income,
+                COALESCE(AVG(o.total_price), 0) as avg_order_value,
+                COUNT(DISTINCT d.id) as donations_made,
+                COALESCE(SUM(d.quantity), 0) as items_donated
+            FROM vendors v
+            LEFT JOIN food_items fi ON v.id = fi.vendor_id
+            LEFT JOIN order_items oi ON fi.id = oi.food_item_id
+            LEFT JOIN orders o ON oi.order_id = o.id AND o.status IN ('completed', 'paid', 'preparing', 'ready') AND o.created_at BETWEEN :start_date AND :end_date
+            LEFT JOIN donations d ON v.id = d.vendor_id AND d.status IN ('completed', 'scheduled') AND d.donation_date BETWEEN :start_date AND :end_date
+            WHERE v.approved = 1 AND v.status = 'active'
+            GROUP BY v.id, v.business_name, v.location
             ORDER BY total_income DESC
-            LIMIT 10
+            LIMIT 15
         ");
-        $incomeStmt->execute();
+        $incomeStmt->execute(['start_date' => $startDate, 'end_date' => $endDate]);
         $vendorIncome = $incomeStmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Monthly Trends
+
+        // 4. MONTHLY TRENDS & GROWTH - REAL TIME
         $monthlyStmt = $db->prepare("
             SELECT 
                 DATE_FORMAT(o.created_at, '%Y-%m') as month,
-                COUNT(o.id) as order_count,
-                SUM(o.total_price) as revenue,
-                COUNT(DISTINCT d.id) as donation_count
+                COUNT(DISTINCT o.id) as order_count,
+                COALESCE(SUM(o.total_price), 0) as revenue,
+                (SELECT COUNT(*) FROM donations d 
+                 WHERE DATE_FORMAT(d.donation_date, '%Y-%m') = DATE_FORMAT(o.created_at, '%Y-%m')
+                 AND d.status IN ('completed', 'scheduled')) as donation_count,
+                (SELECT COALESCE(SUM(quantity), 0) FROM donations d 
+                 WHERE DATE_FORMAT(d.donation_date, '%Y-%m') = DATE_FORMAT(o.created_at, '%Y-%m')
+                 AND d.status IN ('completed', 'scheduled')) as items_donated,
+                COUNT(DISTINCT o.user_id) as active_customers,
+                COUNT(DISTINCT fi.vendor_id) as active_vendors
             FROM orders o
-            LEFT JOIN donations d ON DATE_FORMAT(d.created_at, '%Y-%m') = DATE_FORMAT(o.created_at, '%Y-%m')
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            LEFT JOIN food_items fi ON oi.food_item_id = fi.id
             WHERE o.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+            AND o.status IN ('paid', 'completed', 'preparing', 'ready')
             GROUP BY DATE_FORMAT(o.created_at, '%Y-%m')
             ORDER BY month DESC
         ");
         $monthlyStmt->execute();
         $monthlyTrends = $monthlyStmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
+        // 5. FOOD WASTE PREVENTION METRICS - REAL TIME
+        $wastePreventionStmt = $db->prepare("
+            SELECT 
+                -- Items that would have expired but were sold
+                COUNT(CASE WHEN fi.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 2 DAY) AND oi.id IS NOT NULL THEN 1 END) as last_minute_saves,
+                
+                -- Items that actually expired
+                COUNT(CASE WHEN fi.status = 'expired' THEN 1 END) as items_expired,
+                
+                -- Items expiring soon
+                COUNT(CASE WHEN fi.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 24 HOUR) AND fi.status IN ('active', 'expiring_soon') THEN 1 END) as expiring_soon,
+                
+                -- Donation impact
+                COALESCE(SUM(CASE WHEN d.status = 'completed' THEN d.quantity ELSE 0 END), 0) as items_donated_to_shelters,
+                
+                -- Total food circulation
+                COUNT(CASE WHEN fi.status = 'active' AND fi.stock > 0 THEN 1 END) as active_listings
+            FROM food_items fi
+            LEFT JOIN order_items oi ON fi.id = oi.food_item_id
+            LEFT JOIN donations d ON fi.id = d.food_item_id AND d.status = 'completed'
+        ");
+        $wastePreventionStmt->execute();
+        $wastePrevention = $wastePreventionStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        // 6. SHELTER IMPACT REPORT - REAL TIME
+        $shelterImpactStmt = $db->prepare("
+            SELECT 
+                s.id,
+                s.shelter_name,
+                s.location,
+                s.capacity,
+                COUNT(d.id) as donations_received,
+                COALESCE(SUM(d.quantity), 0) as total_items_received,
+                COALESCE(AVG(d.quantity), 0) as avg_items_per_donation,
+                MIN(d.donation_date) as first_donation,
+                MAX(d.donation_date) as last_donation
+            FROM shelters s
+            LEFT JOIN donations d ON s.id = d.shelter_id AND d.status IN ('completed', 'scheduled') AND d.donation_date BETWEEN :start_date AND :end_date
+            WHERE s.verified = 1 AND s.status = 'active'
+            GROUP BY s.id, s.shelter_name, s.location, s.capacity
+            ORDER BY total_items_received DESC
+        ");
+        $shelterImpactStmt->execute(['start_date' => $startDate, 'end_date' => $endDate]);
+        $shelterImpact = $shelterImpactStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // 7. DELIVERY PERFORMANCE - REAL TIME
+        $deliveryStmt = $db->prepare("
+            SELECT 
+                dd.id,
+                u.name as driver_name,
+                dd.vehicle_type,
+                COUNT(d.id) as deliveries_completed,
+                COALESCE(AVG(TIMESTAMPDIFF(MINUTE, d.pickup_time, d.delivery_time)), 0) as avg_delivery_time_minutes,
+                COUNT(CASE WHEN d.status = 'completed' THEN 1 END) as successful_deliveries,
+                COUNT(CASE WHEN d.status = 'cancelled' THEN 1 END) as cancelled_deliveries
+            FROM delivery_drivers dd
+            LEFT JOIN users u ON dd.user_id = u.id
+            LEFT JOIN deliveries d ON dd.id = d.driver_id AND d.created_at BETWEEN :start_date AND :end_date
+            WHERE dd.status IN ('available', 'busy')
+            GROUP BY dd.id, u.name, dd.vehicle_type
+            ORDER BY deliveries_completed DESC
+        ");
+        $deliveryStmt->execute(['start_date' => $startDate, 'end_date' => $endDate]);
+        $deliveryPerformance = $deliveryStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // 8. REAL-TIME DASHBOARD STATS
+        $realtimeStatsStmt = $db->prepare("
+            SELECT 
+                (SELECT COUNT(*) FROM orders WHERE status IN ('paid', 'preparing', 'ready') AND DATE(created_at) = CURDATE()) as today_orders,
+                (SELECT COUNT(*) FROM orders WHERE status = 'completed' AND DATE(created_at) = CURDATE()) as today_completed,
+                (SELECT COUNT(*) FROM donations WHERE status IN ('completed', 'scheduled') AND DATE(donation_date) = CURDATE()) as today_donations,
+                (SELECT COUNT(*) FROM food_items WHERE status = 'active' AND stock > 0) as active_food_items,
+                (SELECT COUNT(*) FROM vendors WHERE approved = 1 AND status = 'active') as active_vendors,
+                (SELECT COUNT(*) FROM shelters WHERE verified = 1 AND status = 'active') as active_shelters
+        ");
+        $realtimeStatsStmt->execute();
+        $realtimeStats = $realtimeStatsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
     } catch (\Throwable $e) {
         Session::flash('error', 'Failed to generate reports: ' . $e->getMessage());
-        $foodSaved = $donations = [];
-        $vendorIncome = $monthlyTrends = [];
+        // Initialize empty arrays to prevent undefined variable errors
+        $foodSaved = $donations = $wastePrevention = $realtimeStats = [];
+        $vendorIncome = $monthlyTrends = $shelterImpact = $deliveryPerformance = [];
     }
     
     $this->view('admin/reports', [
         'foodSaved' => $foodSaved,
         'donations' => $donations,
         'vendorIncome' => $vendorIncome,
-        'monthlyTrends' => $monthlyTrends
+        'monthlyTrends' => $monthlyTrends,
+        'wastePrevention' => $wastePrevention,
+        'shelterImpact' => $shelterImpact,
+        'deliveryPerformance' => $deliveryPerformance,
+        'realtimeStats' => $realtimeStats,
+        'startDate' => $startDate,
+        'endDate' => $endDate
     ]);
 }
-
 
 public function foodItems(): void
 {
@@ -1448,4 +1558,5 @@ public function rejectShelter(): void
     
     $this->redirect('/admin/approvals');
 }
+
 }

@@ -78,6 +78,7 @@ $isAdminPage = strpos($_SERVER['REQUEST_URI'], '/admin') !== false;
             <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/items"><i class="bi bi-basket"></i> Food Items</a></li>
             <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/orders"><i class="bi bi-receipt"></i> Orders</a></li>
             <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/donations"><i class="bi bi-heart"></i> Donations</a></li>
+            <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/reports"><i class="bi bi-graph-up"></i> Reports</a></li>
             <li class="nav-item"><a class="nav-link text-white" href="<?= BASE_URL ?>/admin/logs"><i class="bi bi-clock-history"></i> Audit Logs</a></li>
           <?php endif; ?>
           

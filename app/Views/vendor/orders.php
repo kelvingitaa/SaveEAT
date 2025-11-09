@@ -9,20 +9,8 @@ ob_start();
 ?>
 <div class="container-fluid">
     <div class="row">
-        <!-- Sidepanel -->
-        <nav class="col-md-2 d-none d-md-block bg-light sidebar py-4">
-            <div class="sidebar-sticky">
-                <ul class="nav flex-column">
-                    <li class="nav-item mb-2"><a class="nav-link" href="<?= BASE_URL ?>/vendor"><i class="bi bi-house"></i> Dashboard</a></li>
-                    <li class="nav-item mb-2"><a class="nav-link" href="<?= BASE_URL ?>/vendor/items"><i class="bi bi-basket"></i> Food Items</a></li>
-                    <li class="nav-item mb-2"><a class="nav-link active fw-bold" href="<?= BASE_URL ?>/vendor/orders"><i class="bi bi-receipt"></i> Orders</a></li>
-                    <li class="nav-item mb-2"><a class="nav-link" href="<?= BASE_URL ?>/vendor/donations"><i class="bi bi-heart"></i> Donations</a></li>
-                </ul>
-            </div>
-        </nav>
-
-        <!-- Main Content -->
-        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
+        <!-- Main Content - Full Width -->
+        <main role="main" class="col-12 px-4">
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2"><i class="bi bi-receipt"></i> Customer Orders</h1>
                 <div class="btn-toolbar mb-2 mb-md-0">
@@ -45,6 +33,30 @@ ob_start();
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php endif; ?>
+
+            <!-- Quick Navigation -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <a href="<?= BASE_URL ?>/vendor" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="bi bi-house"></i> Dashboard
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="<?= BASE_URL ?>/vendor/items" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="bi bi-basket"></i> Food Items
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="<?= BASE_URL ?>/vendor/orders" class="btn btn-primary w-100 mb-2">
+                        <i class="bi bi-receipt"></i> Orders
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="<?= BASE_URL ?>/vendor/donations" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="bi bi-heart"></i> Donations
+                    </a>
+                </div>
+            </div>
 
             <!-- Orders List -->
             <div class="card">

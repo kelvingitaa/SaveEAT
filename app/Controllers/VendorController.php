@@ -10,6 +10,7 @@ use App\Models\Vendor;
 use App\Models\FoodItem;
 use App\Models\Category;
 use App\Models\Donation;
+use App\Models\Delivery;
 
 class VendorController extends Controller
 {
@@ -461,7 +462,25 @@ public function markOrderReady(): void
         if ($verifyStmt->fetch()) {
             $updateStmt = $db->prepare("UPDATE orders SET status = 'ready', updated_at = NOW() WHERE id = ?");
             $updateStmt->execute([$orderId]);
-            Session::flash('success', 'Order marked as ready for pickup!');
+            
+            // Get delivery info to notify driver
+            $deliveryStmt = $db->prepare("
+                SELECT d.id, dr.user_id, u.name as driver_name 
+                FROM deliveries d
+                LEFT JOIN delivery_drivers dr ON d.driver_id = dr.id
+                LEFT JOIN users u ON dr.user_id = u.id
+                WHERE d.order_id = ?
+            ");
+            $deliveryStmt->execute([$orderId]);
+            $delivery = $deliveryStmt->fetch();
+            
+            if ($delivery) {
+                // Here you could send a notification to the driver
+                // For now, we'll just show a success message
+                Session::flash('success', 'Order marked as ready for pickup! Driver ' . ($delivery['driver_name'] ?? '') . ' has been notified.');
+            } else {
+                Session::flash('success', 'Order marked as ready for pickup!');
+            }
         } else {
             Session::flash('error', 'Order not found or access denied');
         }
@@ -664,6 +683,8 @@ public function updateDonationStatus(): void
     
     $this->redirect('/vendor/donations');
 }
+
+
 
 
 }

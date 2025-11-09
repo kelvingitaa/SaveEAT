@@ -12,22 +12,22 @@ use App\Core\CSRF;
 class DeliveryController extends Controller
 {
     public function dashboard(): void
-    {
-        Auth::requireRole(['driver']);
-        
-        $driverModel = new DeliveryDriver();
-        $deliveryModel = new Delivery();
-        
-        $driver = $driverModel->findByUserId(Auth::id());
-        $assignedDeliveries = $deliveryModel->getDeliveriesByDriver($driver['id']);
-        $availableDeliveries = $deliveryModel->getAvailableDeliveries();
-        
-        $this->view('delivery/dashboard', [
-            'driver' => $driver,
-            'assignedDeliveries' => $assignedDeliveries,
-            'availableDeliveries' => $availableDeliveries
-        ]);
-    }
+{
+    Auth::requireRole(['driver']);
+    
+    $driverModel = new DeliveryDriver();
+    $deliveryModel = new Delivery();
+    
+    $driver = $driverModel->findByUserId(Auth::id());
+    $assignedDeliveries = $deliveryModel->getActiveDeliveriesByDriver($driver['id']);
+    $availableDeliveries = $deliveryModel->getAvailableDeliveries();
+    
+    $this->view('delivery/dashboard', [
+        'driver' => $driver,
+        'assignedDeliveries' => $assignedDeliveries,
+        'availableDeliveries' => $availableDeliveries
+    ]);
+}
 
     public function updateStatus(): void
     {

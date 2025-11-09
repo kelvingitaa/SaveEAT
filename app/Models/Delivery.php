@@ -124,20 +124,54 @@ class Delivery extends BaseModel
         ];
     }
 
-    public function getDeliveriesByDriver(int $driverId): array
-    {
-        $stmt = $this->db->prepare("
-            SELECT d.*, o.total_price, u.name as customer_name, u.phone as customer_phone,
-                   u.address as delivery_address
-            FROM deliveries d
-            LEFT JOIN orders o ON d.order_id = o.id
-            LEFT JOIN users u ON o.user_id = u.id
-            WHERE d.driver_id = :driver_id
-            ORDER BY d.created_at DESC
-        ");
-        $stmt->execute(['driver_id' => $driverId]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
+  public function getDeliveriesByDriver(int $driverId): array
+{
+    $stmt = $this->db->prepare("
+        SELECT d.*, o.total_price, u.name as customer_name, u.phone as customer_phone,
+               u.address as delivery_address, o.status as order_status
+        FROM deliveries d
+        LEFT JOIN orders o ON d.order_id = o.id
+        LEFT JOIN users u ON o.user_id = u.id
+        WHERE d.driver_id = :driver_id 
+        AND d.status IN ('assigned', 'vendor_confirmed', 'picked_up', 'in_transit')
+        ORDER BY 
+            CASE 
+                WHEN d.status = 'vendor_confirmed' THEN 1
+                WHEN d.status = 'picked_up' THEN 2
+                WHEN d.status = 'in_transit' THEN 3
+                ELSE 4
+            END,
+            d.created_at DESC
+    ");
+    $stmt->execute(['driver_id' => $driverId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+public function getActiveDeliveriesByDriver(int $driverId): array
+{
+    $stmt = $this->db->prepare("
+        SELECT d.*, o.total_price, o.status as order_status, 
+               u.name as customer_name, u.phone as customer_phone,
+               u.address as delivery_address
+        FROM deliveries d
+        LEFT JOIN orders o ON d.order_id = o.id
+        LEFT JOIN users u ON o.user_id = u.id
+        WHERE d.driver_id = :driver_id 
+        AND d.status IN ('assigned', 'vendor_confirmed', 'picked_up', 'in_transit')
+        AND o.status IN ('preparing', 'ready', 'paid')
+        ORDER BY 
+            CASE 
+                WHEN d.status = 'vendor_confirmed' AND o.status = 'ready' THEN 1
+                WHEN d.status = 'vendor_confirmed' THEN 2
+                WHEN d.status = 'picked_up' THEN 3
+                WHEN d.status = 'in_transit' THEN 4
+                ELSE 5
+            END,
+            d.created_at ASC
+    ");
+    $stmt->execute(['driver_id' => $driverId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
     public function getCompletedDeliveriesByDriver(int $driverId): array
     {
